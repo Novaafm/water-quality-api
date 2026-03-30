@@ -1,0 +1,141 @@
+{
+  "info": {
+    "name": "Water Quality API",
+    "description": "API Testing untuk Monitoring Kualitas Air - Telkom University",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "session_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏠 Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/"
+      }
+    },
+    {
+      "name": "📡 Sensor",
+      "item": [
+        {
+          "name": "Simpan Data Sensor",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/sensors",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"esp32-01\",\n  \"ph\": 7.2,\n  \"turbidity\": 15.3,\n  \"tds\": 350,\n  \"temperature\": 28.5\n}"
+            }
+          }
+        },
+        {
+          "name": "Simpan Data Sensor (Anomali - pH Rendah)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/sensors",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"esp32-01\",\n  \"ph\": 4.5,\n  \"turbidity\": 45.0,\n  \"tds\": 800,\n  \"temperature\": 32.1\n}"
+            }
+          }
+        },
+        {
+          "name": "Ambil Semua Data Sensor",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/sensors?limit=10"
+          }
+        },
+        {
+          "name": "Data Sensor Terbaru",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/sensors/latest"
+          }
+        },
+        {
+          "name": "Statistik Sensor Hari Ini",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/sensors/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🤖 Chat AI",
+      "item": [
+        {
+          "name": "Buat Sesi Chat Baru",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/chat/sessions",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Chat Kualitas Air\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Ambil Semua Sesi",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/chat/sessions"
+          }
+        },
+        {
+          "name": "Kirim Pesan ke AI",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/chat/sessions/{{session_id}}/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Bagaimana kualitas air hari ini?\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Kirim Pesan ke AI (Tanya pH)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/chat/sessions/{{session_id}}/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Apakah pH air saat ini normal? Jelaskan\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Ambil History Chat",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/chat/sessions/{{session_id}}/messages"
+          }
+        }
+      ]
+    }
+  ]
+}

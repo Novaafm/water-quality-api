@@ -1,0 +1,23 @@
+{
+  "name": "water-quality-api",
+  "version": "1.0.0",
+  "description": "Backend API for Water Quality Monitoring - Telkom University",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "db:init": "node src/config/initDb.js",
+    "db:migrate": "node src/config/migrateDb.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "mqtt": "^5.10.0",
+    "@google/generative-ai": "^0.21.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
