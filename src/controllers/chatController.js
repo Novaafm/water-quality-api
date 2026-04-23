@@ -8,7 +8,6 @@ async function createSession(req, res) {
     try {
         const { title } = req.body;
         const data = await chatService.createNewSession(title);
-
         res.status(201).json({
             message: "Sesi chat baru dibuat",
             data,
@@ -29,10 +28,29 @@ async function getAllSessions(req, res) {
     }
 }
 
+async function updateSession(req, res) {
+    try {
+        const { title } = req.body;
+        if (!title) {
+            return res.status(400).json({ error: "title wajib diisi" });
+        }
+        const data = await chatService.updateSessionTitle(parseInt(req.params.id), title);
+        res.json({
+            message: "Judul sesi diperbarui",
+            data,
+        });
+    } catch (err) {
+        if (err.status) {
+            return res.status(err.status).json({ error: err.message });
+        }
+        console.error("Error update sesi:", err.message);
+        res.status(500).json({ error: "Gagal memperbarui sesi chat" });
+    }
+}
+
 async function getMessages(req, res) {
     try {
         const data = await chatService.getSessionMessages(parseInt(req.params.id));
-
         res.json({
             session_id: parseInt(req.params.id),
             count: data.length,
@@ -50,13 +68,10 @@ async function getMessages(req, res) {
 async function sendMessage(req, res) {
     try {
         const { message } = req.body;
-
         if (!message) {
             return res.status(400).json({ error: "message wajib diisi" });
         }
-
         const aiResponse = await chatService.sendMessage(parseInt(req.params.id), message);
-
         res.json({
             session_id: parseInt(req.params.id),
             user_message: message,
@@ -74,6 +89,7 @@ async function sendMessage(req, res) {
 module.exports = {
     createSession,
     getAllSessions,
+    updateSession,
     getMessages,
     sendMessage,
 };

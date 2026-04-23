@@ -62,6 +62,14 @@ async function updateSessionTimestamp(sessionId) {
     );
 }
 
+async function updateSessionTitle(id, title) {
+    const result = await pool.query(
+        "UPDATE chat_sessions SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+        [title, id]
+    );
+    return result.rows[0] || null;
+}
+
 module.exports = {
     createSession,
     findAllSessions,
@@ -70,4 +78,5 @@ module.exports = {
     findRecentMessages,
     insertMessage,
     updateSessionTimestamp,
+    updateSessionTitle,
 };
