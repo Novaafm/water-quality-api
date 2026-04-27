@@ -9,12 +9,17 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
 });
 
+// Set timezone ke WIB (Asia/Jakarta)
+pool.on("connect", (client) => {
+  client.query("SET timezone = 'Asia/Jakarta'");
+});
+
 // Test koneksi
-pool.query("SELECT NOW()", (err) => {
+pool.query("SELECT NOW()", (err, res) => {
   if (err) {
     console.error("❌ Gagal konek ke PostgreSQL:", err.message);
   } else {
-    console.log("✅ PostgreSQL connected");
+    console.log("✅ PostgreSQL connected | Timezone: WIB (Asia/Jakarta)");
   }
 });
 
