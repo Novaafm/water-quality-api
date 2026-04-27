@@ -82,7 +82,7 @@ const initDB = async () => {
       INSERT INTO thresholds 
         (ph_min, ph_max, temp_min, temp_max, tds_min, tds_max, tss_min, tss_max)
       VALUES 
-        (6.5, 8.5, 25.0, 30.0, 0, 500.0, 0, 25.0);
+        (6.5, 8.5, 19.0, 31.0, 0, 1000.0, 0, 25.0);
     `);
     console.log("✅ Default thresholds (Permenkes No. 32/2017) inserted");
 

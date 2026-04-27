@@ -30,8 +30,8 @@ async function reset() {
     const result = await pool.query(
         `UPDATE thresholds 
      SET ph_min = 6.5, ph_max = 8.5,
-         temp_min = 25.0, temp_max = 30.0,
-         tds_min = 0, tds_max = 500.0,
+         temp_min = 19.0, temp_max = 31.0,
+         tds_min = 0, tds_max = 1000.0,
          tss_min = 0, tss_max = 25.0,
          updated_at = CURRENT_TIMESTAMP
      WHERE id = (SELECT id FROM thresholds ORDER BY id DESC LIMIT 1)

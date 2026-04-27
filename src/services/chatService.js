@@ -24,8 +24,8 @@ Karakteristik kamu:
 Standar kualitas air yang kamu gunakan (Permenkes No. 32/2017):
 - pH: Normal 6.5 - 8.5 (standar air bersih)
 - Turbidity: Normal < 25 NTU (standar air bersih)
-- TDS: Normal < 500 ppm (standar air minum), < 1000 ppm (standar air bersih)
-- Suhu: Normal 25 - 30°C (suhu air ambient tropis)`;
+- TDS: Normal < 1000 ppm (standar air minum), < 1000 ppm (standar air bersih)
+- Suhu: Normal suhu udara ± 3°C, sekitar 19 - 31°C untuk wilayah Bandung`;
 
 // ============================================
 // Helper: Bangun konteks sensor untuk AI
