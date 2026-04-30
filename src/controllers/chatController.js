@@ -86,10 +86,28 @@ async function sendMessage(req, res) {
     }
 }
 
+async function removeSession(req, res) {
+    try {
+        const data = await chatService.deleteSession(parseInt(req.params.id));
+
+        res.json({
+            message: "Sesi chat berhasil dihapus",
+            data,
+        });
+    } catch (err) {
+        if (err.status) {
+            return res.status(err.status).json({ error: err.message });
+        }
+        console.error("Error hapus sesi:", err.message);
+        res.status(500).json({ error: "Gagal menghapus sesi chat" });
+    }
+}
+
 module.exports = {
     createSession,
     getAllSessions,
     updateSession,
     getMessages,
     sendMessage,
+    removeSession,
 };

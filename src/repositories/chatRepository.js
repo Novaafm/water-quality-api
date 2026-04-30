@@ -70,6 +70,14 @@ async function updateSessionTitle(id, title) {
     return result.rows[0] || null;
 }
 
+async function deleteSession(sessionId) {
+    const result = await pool.query(
+        "DELETE FROM chat_sessions WHERE id = $1 RETURNING *",
+        [sessionId]
+    );
+    return result.rows[0] || null;
+}
+
 module.exports = {
     createSession,
     findAllSessions,
@@ -79,4 +87,5 @@ module.exports = {
     insertMessage,
     updateSessionTimestamp,
     updateSessionTitle,
+    deleteSession,
 };

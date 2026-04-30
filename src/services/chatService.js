@@ -327,10 +327,19 @@ async function updateSessionTitle(sessionId, title) {
     return await chatRepository.updateSessionTitle(sessionId, title);
 }
 
+async function deleteSession(sessionId) {
+    const session = await chatRepository.findSessionById(sessionId);
+    if (!session) {
+        throw { status: 404, message: "Sesi tidak ditemukan" };
+    }
+    return await chatRepository.deleteSession(sessionId);
+}
+
 module.exports = {
     createNewSession,
     getAllSessions,
     getSessionMessages,
     sendMessage,
     updateSessionTitle,
+    deleteSession,
 };
