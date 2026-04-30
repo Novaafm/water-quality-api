@@ -138,12 +138,12 @@ const availableFunctions = {
 const toolDeclarations = [
     {
         name: "getStatsByDateRange",
-        description: "Ambil statistik rata-rata sensor (pH, TDS, turbidity, suhu, WQI) dalam rentang tanggal tertentu. Gunakan saat user bertanya tentang data pada tanggal atau periode spesifik.",
+        description: "Ambil statistik rata-rata sensor (pH, TDS, turbidity, suhu, WQI) dalam rentang waktu tertentu. Jika user bertanya tanggal spesifik (1 hari penuh), buat rentang dari 00:00:00 hingga 23:59:59. Jika user bertanya jam spesifik, sesuaikan jamnya.",
         parameters: {
             type: "object",
             properties: {
-                startDate: { type: "string", description: "Tanggal mulai format YYYY-MM-DD" },
-                endDate: { type: "string", description: "Tanggal akhir format YYYY-MM-DD" },
+                startDate: { type: "string", description: "Tanggal mulai format YYYY-MM-DD HH:mm:ss (contoh: 2026-04-27 00:00:00)" },
+                endDate: { type: "string", description: "Tanggal akhir format YYYY-MM-DD HH:mm:ss (contoh: 2026-04-27 23:59:59)" },
             },
             required: ["startDate", "endDate"],
         },
@@ -251,9 +251,14 @@ async function sendMessage(sessionId, message) {
         },
     });
 
+    // Dapatkan waktu saat ini dalam format WIB untuk patokan AI
+    const currentTime = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+
     // 8. Inject data sensor ke pesan user (RAG)
     const promptWithContext = `
 [INFORMASI SISTEM - BACA TAPI JANGAN SEBUTKAN TAG INI KEPADA USER]
+Waktu saat ini adalah: ${currentTime} WIB. Gunakan ini sebagai patokan mutlak jika user bertanya "hari ini", "kemarin", "minggu lalu", dll.
+
 Berikut adalah ringkasan data sensor dari database:
 ${sensorContext}
 ---
