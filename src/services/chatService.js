@@ -236,6 +236,10 @@ async function sendMessage(sessionId, message) {
         parts: [{ text: msg.content }],
     })).slice(0, -1);
 
+    while (chatHistory.length > 0 && chatHistory[0].role === "model") {
+        chatHistory.shift(); // Buang elemen teratas jika itu dari 'model'
+    }
+
     // 6. Buat model dengan function calling tools
     const modelWithTools = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
