@@ -30,6 +30,8 @@ async function saveSensorData(deviceCode, ph, turbidity, tds, temperature) {
     device.id, ph, turbidity, tds, temperature, wqi.wqi_score, wqi.wqi_status
   );
 
+  await deviceRepository.updateLastSeen(device.id);
+
   // 5. Cek threshold & simpan alerts
   const alertList = checkThresholdAlerts({ ph, turbidity, tds, temperature }, threshold);
   const savedAlerts = [];

@@ -38,8 +38,8 @@ const initDB = async () => {
         id SERIAL PRIMARY KEY,
         device_code VARCHAR(50) UNIQUE NOT NULL,
         location VARCHAR(255),
-        installed_at DATE DEFAULT CURRENT_DATE,
-        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive'))
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+        last_seen TIMESTAMP DEFAULT NULL
       );
     `);
     console.log("✅ Table devices created");

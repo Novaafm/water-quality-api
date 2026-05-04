@@ -57,6 +57,27 @@ async function remove(id) {
   return result.rows[0] || null;
 }
 
+async function updateLastSeen(deviceId) {
+  const result = await pool.query(
+    "UPDATE devices SET last_seen = NOW(), status = 'active' WHERE id = $1 RETURNING *",
+    [deviceId]
+  );
+  return result.rows[0] || null;
+}
+
+async function deactivateStaleDevices(minutesThreshold = 5) {
+  const result = await pool.query(
+    `UPDATE devices 
+     SET status = 'inactive' 
+     WHERE status = 'active' 
+     AND last_seen IS NOT NULL 
+     AND last_seen < NOW() - INTERVAL '1 minute' * $1
+     RETURNING *`,
+    [minutesThreshold]
+  );
+  return result.rows;
+}
+
 module.exports = {
   findByCode,
   findAll,
@@ -64,4 +85,6 @@ module.exports = {
   insert,
   update,
   remove,
+  updateLastSeen,
+  deactivateStaleDevices,
 };

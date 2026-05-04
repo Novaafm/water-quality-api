@@ -8,6 +8,7 @@ const chatRoutes = require("./routes/chatRoutes");
 const thresholdRoutes = require("./routes/thresholdRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const deviceRoutes = require("./routes/deviceRoutes");
+const deviceRepository = require("./repositories/deviceRepository");
 
 // Import MQTT
 const connectMQTT = require("./config/mqtt");
@@ -80,4 +81,15 @@ app.listen(PORT, () => {
 
   // Connect MQTT (untuk terima data dari ESP32)
   connectMQTT();
+
+  setInterval(async () => {
+    try {
+      const staleDevices = await deviceRepository.deactivateStaleDevices(5);
+      if (staleDevices.length > 0) {
+        console.log(`⚠️ ${staleDevices.length} device(s) set to inactive (no data > 5 min)`);
+      }
+    } catch (err) {
+      console.error("Error checking stale devices:", err.message);
+    }
+  }, 60000); // Cek setiap 60 detik
 });
