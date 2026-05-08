@@ -17,6 +17,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ============================================
+// Trust proxy (Railway pakai reverse proxy)
+// Trust 1 hop saja agar express-rate-limit bisa baca IP asli
+// JANGAN pakai `true` tanpa angka — bisa di-spoof attacker via X-Forwarded-For
+// ============================================
+app.set("trust proxy", 1);
+
+// ============================================
 // Middleware
 // ============================================
 app.use(cors());
@@ -38,6 +45,7 @@ app.get("/", (req, res) => {
     name: "Water Quality Monitoring API - UniFlow",
     version: "2.0.0",
     endpoints: {
+      // ... (sama persis seperti punya Anda, tidak perlu diubah)
       sensors: {
         "POST /api/sensors": "Simpan data sensor (+ WQI + auto alert)",
         "GET /api/sensors": "Ambil data sensor (query: limit)",

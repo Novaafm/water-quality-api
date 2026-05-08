@@ -7,6 +7,16 @@ require("dotenv").config();
 // Inisialisasi Gemini (tanpa model — model dibuat di sendMessage dengan tools)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// 🔒 SAFETY NET: Konstanta batas aman
+const MAX_FUNCTION_CALL_ITERATIONS = 5; // Max berapa kali AI boleh panggil function dalam 1 response
+
+// Helper: clamp angka dalam rentang aman
+const clamp = (value, min, max) => {
+    const num = parseInt(value);
+    if (isNaN(num)) return min;
+    return Math.max(min, Math.min(max, num));
+};
+
 // ============================================
 // System Prompt UniFlow
 // ============================================
@@ -25,7 +35,7 @@ Karakteristik kamu:
 Standar kualitas air yang kamu gunakan (Permenkes No. 32/2017):
 - pH: Normal 6.5 - 8.5 (standar air bersih)
 - Turbidity: Normal < 25 NTU (standar air bersih)
-- TDS: Normal < 1000 ppm (standar air minum), < 1000 ppm (standar air bersih)
+- TDS: Normal < 500 ppm (standar air minum), < 1000 ppm (standar air bersih)
 - Suhu: Normal suhu udara ± 3°C, sekitar 19 - 31°C untuk wilayah Bandung`;
 
 // ============================================
@@ -111,26 +121,44 @@ async function buildSensorContext() {
 
 // ============================================
 // Function Calling: AI bisa query database sendiri
+// 🔒 SAFETY NET: Semua parameter di-clamp ke rentang aman
 // ============================================
 const availableFunctions = {
     getStatsByDateRange: async (startDate, endDate) => {
+        // Validasi format date — kalau invalid, fallback ke 7 hari terakhir
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return JSON.stringify({ error: "Format tanggal tidak valid. Gunakan format YYYY-MM-DD HH:mm:ss" });
+        }
+
+        // Pastikan start <= end
+        if (start > end) {
+            return JSON.stringify({ error: "Tanggal mulai harus lebih awal dari tanggal akhir" });
+        }
+
         const stats = await sensorRepository.getStatsByDateRange(startDate, endDate);
         return JSON.stringify(stats);
     },
     getRecentReadings: async (limit) => {
-        const readings = await sensorRepository.getRecentReadings(limit);
+        const safeLimit = clamp(limit, 1, 50); // 🔒 max 50 sesuai tool description
+        const readings = await sensorRepository.getRecentReadings(safeLimit);
         return JSON.stringify(readings);
     },
     getStatsByPeriod: async (days) => {
-        const stats = await sensorRepository.getStatsByPeriod(days);
+        const safeDays = clamp(days, 1, 90); // 🔒 max 90 sesuai retensi DB (CD-3)
+        const stats = await sensorRepository.getStatsByPeriod(safeDays);
         return JSON.stringify(stats);
     },
     getDailyStats: async (days) => {
-        const stats = await sensorRepository.getDailyStats(days);
+        const safeDays = clamp(days, 1, 90); // 🔒 max 90 sesuai retensi DB
+        const stats = await sensorRepository.getDailyStats(safeDays);
         return JSON.stringify(stats);
     },
     getWeeklyStats: async (weeks) => {
-        const stats = await sensorRepository.getWeeklyStats(weeks);
+        const safeWeeks = clamp(weeks, 1, 13); // 🔒 max 13 minggu (~90 hari)
+        const stats = await sensorRepository.getWeeklyStats(safeWeeks);
         return JSON.stringify(stats);
     },
 };
@@ -165,7 +193,7 @@ const toolDeclarations = [
         parameters: {
             type: "object",
             properties: {
-                days: { type: "number", description: "Jumlah hari ke belakang (misal 7 untuk seminggu, 30 untuk sebulan)" },
+                days: { type: "number", description: "Jumlah hari ke belakang (misal 7 untuk seminggu, 30 untuk sebulan, max 90)" },
             },
             required: ["days"],
         },
@@ -176,7 +204,7 @@ const toolDeclarations = [
         parameters: {
             type: "object",
             properties: {
-                days: { type: "number", description: "Jumlah hari ke belakang (default 7)" },
+                days: { type: "number", description: "Jumlah hari ke belakang (default 7, max 90)" },
             },
             required: ["days"],
         },
@@ -187,7 +215,7 @@ const toolDeclarations = [
         parameters: {
             type: "object",
             properties: {
-                weeks: { type: "number", description: "Jumlah minggu ke belakang (default 12)" },
+                weeks: { type: "number", description: "Jumlah minggu ke belakang (default 12, max 13 sesuai retensi data 90 hari)" },
             },
             required: ["weeks"],
         },
@@ -276,13 +304,18 @@ ${message}
     let result = await chat.sendMessage(promptWithContext);
     let response = result.response;
 
-    // Loop: kalau AI mau panggil function, eksekusi dan kirim hasilnya balik
-    while (response.candidates[0].content.parts.some(part => part.functionCall)) {
+    // 🔒 SAFETY NET: Loop dengan batas iterasi untuk mencegah infinite loop
+    let iterations = 0;
+    while (
+        response.candidates[0].content.parts.some(part => part.functionCall) &&
+        iterations < MAX_FUNCTION_CALL_ITERATIONS
+    ) {
+        iterations++;
         const functionCallPart = response.candidates[0].content.parts.find(part => part.functionCall);
         const functionName = functionCallPart.functionCall.name;
         const functionArgs = functionCallPart.functionCall.args;
 
-        console.log(`🔧 AI memanggil function: ${functionName}(${JSON.stringify(functionArgs)})`);
+        console.log(`🔧 [Iter ${iterations}/${MAX_FUNCTION_CALL_ITERATIONS}] AI memanggil function: ${functionName}(${JSON.stringify(functionArgs)})`);
 
         // Eksekusi function
         const functionToCall = availableFunctions[functionName];
@@ -299,12 +332,15 @@ ${message}
                 functionResult = await functionToCall(functionArgs.days || 7);
             } else if (functionName === "getWeeklyStats") {
                 functionResult = await functionToCall(functionArgs.weeks || 12);
+            } else {
+                // 🔒 SAFETY NET: function name tidak dikenal
+                functionResult = JSON.stringify({ error: `Function ${functionName} tidak tersedia` });
             }
         } catch (err) {
             functionResult = JSON.stringify({ error: "Gagal mengambil data: " + err.message });
         }
 
-        console.log(`📊 Hasil function: ${functionResult}`);
+        console.log(`📊 Hasil function: ${functionResult.substring(0, 200)}...`); // Truncate log biar tidak terlalu panjang
 
         // Kirim hasil function kembali ke AI
         result = await chat.sendMessage([{
@@ -314,6 +350,11 @@ ${message}
             },
         }]);
         response = result.response;
+    }
+
+    // 🔒 SAFETY NET: Log warning kalau iterasi mentok
+    if (iterations >= MAX_FUNCTION_CALL_ITERATIONS) {
+        console.warn(`⚠️ Max function call iterations (${MAX_FUNCTION_CALL_ITERATIONS}) tercapai untuk session ${sessionId}`);
     }
 
     // 10. Ambil jawaban final AI

@@ -6,7 +6,7 @@ const pool = require("../config/database");
 
 async function findByCode(deviceCode) {
   const result = await pool.query(
-    "SELECT * FROM devices WHERE device_code = $1 AND status = 'active'",
+    "SELECT * FROM devices WHERE device_code = $1",
     [deviceCode]
   );
   return result.rows[0] || null;
