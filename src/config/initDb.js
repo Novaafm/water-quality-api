@@ -17,7 +17,7 @@ const pool = new Pool({
 
 const initDB = async () => {
   try {
-    console.log("🔄 Initializing UniFlow database...\n");
+    console.log("Initializing UniFlow database...\n");
 
     // ---- Drop all existing tables ----
     await pool.query(`
@@ -30,7 +30,7 @@ const initDB = async () => {
       DROP TABLE IF EXISTS ambang_batas CASCADE;
       DROP TABLE IF EXISTS perangkat_iot CASCADE;
     `);
-    console.log("✅ Old tables dropped");
+    console.log("Old tables dropped");
 
     // ---- 1. devices ----
     await pool.query(`
@@ -42,7 +42,7 @@ const initDB = async () => {
         last_seen TIMESTAMP DEFAULT NULL
       );
     `);
-    console.log("✅ Table devices created");
+    console.log("Table devices created");
 
     // ---- 2. sensor_data ----
     await pool.query(`
@@ -58,7 +58,7 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("✅ Table sensor_data created");
+    console.log("Table sensor_data created");
 
     // ---- 3. thresholds ----
     await pool.query(`
@@ -75,7 +75,7 @@ const initDB = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("✅ Table thresholds created");
+    console.log("Table thresholds created");
 
     // Insert default threshold (Permenkes No. 32/2017)
     await pool.query(`
@@ -84,7 +84,7 @@ const initDB = async () => {
       VALUES 
         (6.5, 8.5, 19.0, 31.0, 0, 1000.0, 0, 25.0);
     `);
-    console.log("✅ Default thresholds (Permenkes No. 32/2017) inserted");
+    console.log("Default thresholds (Permenkes No. 32/2017) inserted");
 
     // ---- 4. alerts ----
     await pool.query(`
@@ -101,7 +101,7 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("✅ Table alerts created");
+    console.log("Table alerts created");
 
     // ---- 5. chat_sessions ----
     await pool.query(`
@@ -112,7 +112,7 @@ const initDB = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("✅ Table chat_sessions created");
+    console.log("Table chat_sessions created");
 
     // ---- 6. chat_messages ----
     await pool.query(`
@@ -124,7 +124,7 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("✅ Table chat_messages created");
+    console.log("Table chat_messages created");
 
     // ---- 7. Indexes ----
     await pool.query(`
@@ -136,14 +136,14 @@ const initDB = async () => {
       CREATE INDEX idx_alerts_created ON alerts(created_at DESC);
       CREATE INDEX idx_devices_code ON devices(device_code);
     `);
-    console.log("✅ Indexes created");
+    console.log("Indexes created");
 
     // ---- 8. Default device ----
     await pool.query(`
       INSERT INTO devices (device_code, location)
       VALUES ('esp32-01', 'Saluran Air Telkom University');
     `);
-    console.log("✅ Default device esp32-01 registered");
+    console.log("Default device esp32-01 registered");
 
     console.log("\n🎉 Database initialization complete!");
     console.log("\n📋 Tables created (6):");
@@ -155,7 +155,7 @@ const initDB = async () => {
     console.log("   6. chat_messages (AI chat messages)");
 
   } catch (err) {
-    console.error("❌ Error:", err.message);
+    console.error("Error:", err.message);
   } finally {
     await pool.end();
   }

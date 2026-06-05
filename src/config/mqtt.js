@@ -6,13 +6,13 @@ const connectMQTT = () => {
   const client = mqtt.connect(process.env.MQTT_BROKER);
 
   client.on("connect", () => {
-    console.log("✅ MQTT connected to", process.env.MQTT_BROKER);
+    console.log("MQTT connected to", process.env.MQTT_BROKER);
 
     client.subscribe(process.env.MQTT_TOPIC, (err) => {
       if (err) {
-        console.error("❌ MQTT subscribe error:", err.message);
+        console.error("MQTT subscribe error:", err.message);
       } else {
-        console.log("✅ MQTT subscribed to:", process.env.MQTT_TOPIC);
+        console.log("MQTT subscribed to:", process.env.MQTT_TOPIC);
       }
     });
   });
@@ -29,18 +29,18 @@ const connectMQTT = () => {
         deviceCode, data.ph, data.turbidity, data.tds, data.temperature
       );
 
-      console.log("💾 Data tersimpan | WQI:", result.wqi.score, "| Status:", result.wqi.status);
+      console.log("Data tersimpan | WQI:", result.wqi.score, "| Status:", result.wqi.status);
 
       if (result.alerts) {
-        console.log("🚨 " + result.alerts.length + " alert(s) generated");
+        console.log("" + result.alerts.length + " alert(s) generated");
       }
     } catch (err) {
-      console.error("❌ Error proses MQTT:", err.message || err);
+      console.error("Error proses MQTT:", err.message || err);
     }
   });
 
   client.on("error", (err) => {
-    console.error("❌ MQTT error:", err.message);
+    console.error(" MQTT error:", err.message);
   });
 
   return client;

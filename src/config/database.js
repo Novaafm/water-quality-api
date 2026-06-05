@@ -13,10 +13,10 @@ const pool = new Pool({
 // Test koneksi
 pool.query("SELECT NOW()")
   .then(() => {
-    console.log("✅ PostgreSQL connected | Timezone: WIB (Asia/Jakarta)");
+    console.log("PostgreSQL connected | Timezone: WIB (Asia/Jakarta)");
   })
   .catch((err) => {
-    console.error("❌ Gagal konek ke PostgreSQL:", err.message);
+    console.error("Gagal konek ke PostgreSQL:", err.message);
   });
 
 module.exports = pool;
