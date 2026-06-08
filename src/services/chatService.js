@@ -8,7 +8,7 @@ require("dotenv").config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // 🔒 SAFETY NET: Konstanta batas aman
-const MAX_FUNCTION_CALL_ITERATIONS = 5; // Max berapa kali AI boleh panggil function dalam 1 response
+const MAX_FUNCTION_CALL_ITERATIONS = 5;
 
 // Helper: clamp angka dalam rentang aman
 const clamp = (value, min, max) => {
@@ -31,11 +31,12 @@ Karakteristik kamu:
 - Saat memberikan data rata-rata atau statistik, SELALU tampilkan keempat parameter (pH, Turbidity, TDS, Suhu) dan WQI secara lengkap. Jangan pernah melewatkan parameter apapun.
 - Jika ditanya di luar topik kualitas air, kamu mengarahkan kembali ke topik utama
 - Jika user bertanya tentang data historis atau rentang waktu tertentu, gunakan function/tool yang tersedia
+- Jika user menyebutkan zona/lokasi tertentu, gunakan parameter zone pada function yang tersedia
 
 Standar kualitas air yang kamu gunakan (Permenkes No. 32/2017):
 - pH: Normal 6.5 - 8.5 (standar air bersih)
 - Turbidity: Normal < 25 NTU (standar air bersih)
-- TDS: Normal < 500 ppm (standar air minum), < 1000 ppm (standar air bersih)
+- TDS: Normal < 1000 ppm (standar Permenkes No. 32/2017)
 - Suhu: Normal suhu udara ± 3°C, sekitar 19 - 31°C untuk wilayah Bandung`;
 
 // ============================================
@@ -124,8 +125,7 @@ async function buildSensorContext() {
 // 🔒 SAFETY NET: Semua parameter di-clamp ke rentang aman
 // ============================================
 const availableFunctions = {
-    getStatsByDateRange: async (startDate, endDate) => {
-        // Validasi format date — kalau invalid, fallback ke 7 hari terakhir
+    getStatsByDateRange: async (startDate, endDate, zone) => {
         const start = new Date(startDate);
         const end = new Date(endDate);
 
@@ -133,31 +133,30 @@ const availableFunctions = {
             return JSON.stringify({ error: "Format tanggal tidak valid. Gunakan format YYYY-MM-DD HH:mm:ss" });
         }
 
-        // Pastikan start <= end
         if (start > end) {
             return JSON.stringify({ error: "Tanggal mulai harus lebih awal dari tanggal akhir" });
         }
 
-        const stats = await sensorRepository.getStatsByDateRange(startDate, endDate);
+        const stats = await sensorRepository.getStatsByDateRange(startDate, endDate, zone || null);
         return JSON.stringify(stats);
     },
     getRecentReadings: async (limit) => {
-        const safeLimit = clamp(limit, 1, 50); // 🔒 max 50 sesuai tool description
+        const safeLimit = clamp(limit, 1, 50);
         const readings = await sensorRepository.getRecentReadings(safeLimit);
         return JSON.stringify(readings);
     },
-    getStatsByPeriod: async (days) => {
-        const safeDays = clamp(days, 1, 90); // 🔒 max 90 sesuai retensi DB (CD-3)
-        const stats = await sensorRepository.getStatsByPeriod(safeDays);
+    getStatsByPeriod: async (days, zone) => {
+        const safeDays = clamp(days, 1, 90);
+        const stats = await sensorRepository.getStatsByPeriod(safeDays, zone || null);
         return JSON.stringify(stats);
     },
     getDailyStats: async (days) => {
-        const safeDays = clamp(days, 1, 90); // 🔒 max 90 sesuai retensi DB
+        const safeDays = clamp(days, 1, 90);
         const stats = await sensorRepository.getDailyStats(safeDays);
         return JSON.stringify(stats);
     },
     getWeeklyStats: async (weeks) => {
-        const safeWeeks = clamp(weeks, 1, 13); // 🔒 max 13 minggu (~90 hari)
+        const safeWeeks = clamp(weeks, 1, 13);
         const stats = await sensorRepository.getWeeklyStats(safeWeeks);
         return JSON.stringify(stats);
     },
@@ -166,12 +165,13 @@ const availableFunctions = {
 const toolDeclarations = [
     {
         name: "getStatsByDateRange",
-        description: "Ambil statistik rata-rata sensor (pH, TDS, turbidity, suhu, WQI) dalam rentang waktu tertentu. Jika user bertanya tanggal spesifik (1 hari penuh), buat rentang dari 00:00:00 hingga 23:59:59. Jika user bertanya jam spesifik, sesuaikan jamnya.",
+        description: "Ambil statistik rata-rata sensor (pH, TDS, turbidity, suhu, WQI) dalam rentang waktu tertentu. Bisa filter per zona/lokasi. Jika user bertanya tanggal spesifik (1 hari penuh), buat rentang dari 00:00:00 hingga 23:59:59.",
         parameters: {
             type: "object",
             properties: {
-                startDate: { type: "string", description: "Tanggal mulai format YYYY-MM-DD HH:mm:ss (contoh: 2026-04-27 00:00:00)" },
-                endDate: { type: "string", description: "Tanggal akhir format YYYY-MM-DD HH:mm:ss (contoh: 2026-04-27 23:59:59)" },
+                startDate: { type: "string", description: "Tanggal mulai format YYYY-MM-DD HH:mm:ss (contoh: 2026-06-08 00:00:00)" },
+                endDate: { type: "string", description: "Tanggal akhir format YYYY-MM-DD HH:mm:ss (contoh: 2026-06-08 23:59:59)" },
+                zone: { type: "string", description: "Nama zona/lokasi pengukuran (contoh: Asrama, Saluran Air GKU). Kosongkan jika user tidak menyebut lokasi spesifik." },
             },
             required: ["startDate", "endDate"],
         },
@@ -189,11 +189,12 @@ const toolDeclarations = [
     },
     {
         name: "getStatsByPeriod",
-        description: "Ambil statistik rata-rata sensor dalam X hari terakhir. Gunakan saat user bertanya tentang rata-rata atau tren dalam periode hari tertentu.",
+        description: "Ambil statistik rata-rata sensor dalam X hari terakhir. Bisa filter per zona/lokasi. Gunakan saat user bertanya tentang rata-rata atau tren dalam periode hari tertentu.",
         parameters: {
             type: "object",
             properties: {
                 days: { type: "number", description: "Jumlah hari ke belakang (misal 7 untuk seminggu, 30 untuk sebulan, max 90)" },
+                zone: { type: "string", description: "Nama zona/lokasi pengukuran. Kosongkan jika user tidak menyebut lokasi spesifik." },
             },
             required: ["days"],
         },
@@ -265,7 +266,7 @@ async function sendMessage(sessionId, message) {
     })).slice(0, -1);
 
     while (chatHistory.length > 0 && chatHistory[0].role === "model") {
-        chatHistory.shift(); // Buang elemen teratas jika itu dari 'model'
+        chatHistory.shift();
     }
 
     // 6. Buat model dengan function calling tools
@@ -283,7 +284,7 @@ async function sendMessage(sessionId, message) {
         },
     });
 
-    // Dapatkan waktu saat ini dalam format WIB untuk patokan AI
+    // Dapatkan waktu saat ini dalam format WIB
     const currentTime = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
 
     // 8. Inject data sensor ke pesan user (RAG)
@@ -294,7 +295,7 @@ Waktu saat ini adalah: ${currentTime} WIB. Gunakan ini sebagai patokan mutlak ji
 Berikut adalah ringkasan data sensor dari database:
 ${sensorContext}
 ---
-Jika data di atas belum cukup untuk menjawab pertanyaan user (misalnya user bertanya tentang tanggal spesifik atau data detail), gunakan function/tool yang tersedia untuk query database.
+Jika data di atas belum cukup untuk menjawab pertanyaan user (misalnya user bertanya tentang tanggal spesifik, jam spesifik, atau zona/lokasi tertentu), gunakan function/tool yang tersedia untuk query database.
 ---
 [PERTANYAAN USER]
 ${message}
@@ -304,7 +305,7 @@ ${message}
     let result = await chat.sendMessage(promptWithContext);
     let response = result.response;
 
-    // 🔒 SAFETY NET: Loop dengan batas iterasi untuk mencegah infinite loop
+    // 🔒 SAFETY NET: Loop dengan batas iterasi
     let iterations = 0;
     while (
         response.candidates[0].content.parts.some(part => part.functionCall) &&
@@ -323,24 +324,23 @@ ${message}
 
         try {
             if (functionName === "getStatsByDateRange") {
-                functionResult = await functionToCall(functionArgs.startDate, functionArgs.endDate);
+                functionResult = await functionToCall(functionArgs.startDate, functionArgs.endDate, functionArgs.zone);
             } else if (functionName === "getRecentReadings") {
                 functionResult = await functionToCall(functionArgs.limit || 10);
             } else if (functionName === "getStatsByPeriod") {
-                functionResult = await functionToCall(functionArgs.days);
+                functionResult = await functionToCall(functionArgs.days, functionArgs.zone);
             } else if (functionName === "getDailyStats") {
                 functionResult = await functionToCall(functionArgs.days || 7);
             } else if (functionName === "getWeeklyStats") {
                 functionResult = await functionToCall(functionArgs.weeks || 12);
             } else {
-                // 🔒 SAFETY NET: function name tidak dikenal
                 functionResult = JSON.stringify({ error: `Function ${functionName} tidak tersedia` });
             }
         } catch (err) {
             functionResult = JSON.stringify({ error: "Gagal mengambil data: " + err.message });
         }
 
-        console.log(`Hasil function: ${functionResult.substring(0, 200)}...`); // Truncate log biar tidak terlalu panjang
+        console.log(`Hasil function: ${functionResult.substring(0, 200)}...`);
 
         // Kirim hasil function kembali ke AI
         result = await chat.sendMessage([{

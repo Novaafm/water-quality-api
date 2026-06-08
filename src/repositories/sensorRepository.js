@@ -100,8 +100,8 @@ async function findForExport({ days, zone, start, end } = {}) {
 // Fungsi untuk AI Chatbot (Function Calling)
 // ============================================
 
-async function getStatsByPeriod(days) {
-  const result = await pool.query(`
+async function getStatsByPeriod(days, zone) {
+  let query = `
     SELECT
       COUNT(*) as total_readings,
       ROUND(AVG(ph)::numeric, 2) as avg_ph,
@@ -119,12 +119,20 @@ async function getStatsByPeriod(days) {
       ROUND(MAX(turbidity)::numeric, 2) as max_turbidity
     FROM sensor_data
     WHERE created_at >= NOW() - INTERVAL '1 day' * $1
-  `, [days]);
+  `;
+  const params = [days];
+
+  if (zone) {
+    params.push(zone);
+    query += ` AND location = $${params.length}`;
+  }
+
+  const result = await pool.query(query, params);
   return result.rows[0];
 }
 
-async function getStatsByDateRange(startDate, endDate) {
-  const result = await pool.query(`
+async function getStatsByDateRange(startDate, endDate, location) {
+  let query = `
     SELECT
       COUNT(*) as total_readings,
       ROUND(AVG(ph)::numeric, 2) as avg_ph,
@@ -136,7 +144,15 @@ async function getStatsByDateRange(startDate, endDate) {
       ROUND(MAX(wqi_score)::numeric, 2) as max_wqi
     FROM sensor_data
     WHERE created_at >= $1 AND created_at <= $2
-  `, [startDate, endDate]);
+  `;
+  const params = [startDate, endDate];
+
+  if (location) {
+    params.push(location);
+    query += ` AND location = $${params.length}`;
+  }
+
+  const result = await pool.query(query, params);
   return result.rows[0];
 }
 
