@@ -315,7 +315,7 @@ ${message}
         const functionName = functionCallPart.functionCall.name;
         const functionArgs = functionCallPart.functionCall.args;
 
-        console.log(`🔧 [Iter ${iterations}/${MAX_FUNCTION_CALL_ITERATIONS}] AI memanggil function: ${functionName}(${JSON.stringify(functionArgs)})`);
+        console.log(`[Iter ${iterations}/${MAX_FUNCTION_CALL_ITERATIONS}] AI memanggil function: ${functionName}(${JSON.stringify(functionArgs)})`);
 
         // Eksekusi function
         const functionToCall = availableFunctions[functionName];
@@ -340,7 +340,7 @@ ${message}
             functionResult = JSON.stringify({ error: "Gagal mengambil data: " + err.message });
         }
 
-        console.log(`📊 Hasil function: ${functionResult.substring(0, 200)}...`); // Truncate log biar tidak terlalu panjang
+        console.log(`Hasil function: ${functionResult.substring(0, 200)}...`); // Truncate log biar tidak terlalu panjang
 
         // Kirim hasil function kembali ke AI
         result = await chat.sendMessage([{
@@ -354,7 +354,7 @@ ${message}
 
     // 🔒 SAFETY NET: Log warning kalau iterasi mentok
     if (iterations >= MAX_FUNCTION_CALL_ITERATIONS) {
-        console.warn(`⚠️ Max function call iterations (${MAX_FUNCTION_CALL_ITERATIONS}) tercapai untuk session ${sessionId}`);
+        console.warn(`Max function call iterations (${MAX_FUNCTION_CALL_ITERATIONS}) tercapai untuk session ${sessionId}`);
     }
 
     // 10. Ambil jawaban final AI

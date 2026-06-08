@@ -84,8 +84,8 @@ app.get("/", (req, res) => {
 // Start server + MQTT
 // ============================================
 app.listen(PORT, () => {
-  console.log(`\n🚀 Server running at http://localhost:${PORT}`);
-  console.log(`📋 API docs at http://localhost:${PORT}\n`);
+  console.log(`\nServer running at http://localhost:${PORT}`);
+  console.log(`API docs at http://localhost:${PORT}\n`);
 
   // Connect MQTT (untuk terima data dari ESP32)
   connectMQTT();
@@ -94,7 +94,7 @@ app.listen(PORT, () => {
     try {
       const staleDevices = await deviceRepository.deactivateStaleDevices(5);
       if (staleDevices.length > 0) {
-        console.log(`⚠️ ${staleDevices.length} device(s) set to inactive (no data > 5 min)`);
+        console.log(`${staleDevices.length} device(s) set to inactive (no data > 5 min)`);
       }
     } catch (err) {
       console.error("Error checking stale devices:", err.message);
