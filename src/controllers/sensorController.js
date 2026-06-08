@@ -75,7 +75,13 @@ async function exportCSV(req, res) {
         }
 
         res.setHeader("Content-Type", "text/csv");
-        res.setHeader("Content-Disposition", "attachment; filename=data_kualitas_air.csv");
+        const now = new Date().toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+            year: "numeric", month: "2-digit", day: "2-digit",
+            hour: "2-digit", minute: "2-digit", second: "2-digit",
+            hour12: false
+        }).replace(/[/:]/g, "-").replace(/, /g, "_");
+        res.setHeader("Content-Disposition", `attachment; filename=data_kualitas_air_${now}.csv`);
         res.send(csv);
     } catch (err) {
         console.error("Error export CSV:", err.message);

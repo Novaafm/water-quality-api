@@ -1,16 +1,16 @@
 // ============================================
 // Water Quality Index (WQI) Calculator
-// Sesuai CD-2 B-03:
+// Sesuai CD-2 B-03 + Permenkes No. 32/2017:
 // - Pembobotan parameter (TDS & Kekeruhan bobot tinggi)
 // - Menghasilkan skor 0-100 dan status (Baik/Sedang/Buruk)
 // ============================================
 
 /**
- * Hitung sub-index per parameter
- * Dalam range normal = skor tinggi (75-100)
- * Di luar range = skor rendah (0-74)
+ * Sub-index untuk parameter "tengah terbaik" (pH, Suhu)
+ * Skor tertinggi di tengah range, menurun ke kedua sisi
+ * Contoh pH: 7.5 = skor 100, 6.5 atau 8.5 = skor 75
  */
-function calculateSubIndex(value, min, max) {
+function subIndexCenterBest(value, min, max) {
     if (value === null || value === undefined) return null;
 
     const val = parseFloat(value);
@@ -46,12 +46,41 @@ function calculateSubIndex(value, min, max) {
 }
 
 /**
+ * Sub-index untuk parameter "makin rendah makin bagus" (TDS, NTU)
+ * Skor tertinggi di 0, menurun linear ke batas max
+ * Contoh NTU: 0 = skor 100, 25 = skor 75, >25 = skor <75
+ * Contoh TDS: 0 = skor 100, 1000 = skor 75, >1000 = skor <75
+ */
+function subIndexLowerBetter(value, min, max) {
+    if (value === null || value === undefined) return null;
+
+    const val = parseFloat(value);
+    const maxVal = parseFloat(max);
+
+    // Dalam rentang normal (0 sampai max)
+    if (val >= 0 && val <= maxVal) {
+        const score = 100 - (val / maxVal) * 25;
+        return Math.max(0, Math.min(100, score));
+    }
+
+    // Di atas batas maksimum
+    if (val > maxVal) {
+        const deviation = val - maxVal;
+        const tolerance = maxVal * 0.5 || 5;
+        const score = 75 - (deviation / tolerance) * 75;
+        return Math.max(0, Math.min(74, score));
+    }
+
+    return 0;
+}
+
+/**
  * Hitung WQI keseluruhan
  * Bobot sesuai CD-2 B-03:
- * - pH: 0.20
- * - Suhu: 0.10
- * - TDS: 0.35 (bobot tinggi)
- * - TSS/Turbidity: 0.35 (bobot tinggi)
+ * - pH: 0.20 (center best)
+ * - Suhu: 0.10 (center best)
+ * - TDS: 0.35 (lower better, bobot tinggi)
+ * - TSS/Turbidity: 0.35 (lower better, bobot tinggi)
  */
 function calculateWQI(sensorData, threshold) {
     const weights = {
@@ -62,10 +91,10 @@ function calculateWQI(sensorData, threshold) {
     };
 
     const subIndex = {
-        ph: calculateSubIndex(sensorData.ph, threshold.ph_min, threshold.ph_max),
-        temp: calculateSubIndex(sensorData.temperature, threshold.temp_min, threshold.temp_max),
-        tds: calculateSubIndex(sensorData.tds, threshold.tds_min, threshold.tds_max),
-        tss: calculateSubIndex(sensorData.turbidity, threshold.tss_min, threshold.tss_max),
+        ph: subIndexCenterBest(sensorData.ph, threshold.ph_min, threshold.ph_max),
+        temp: subIndexCenterBest(sensorData.temperature, threshold.temp_min, threshold.temp_max),
+        tds: subIndexLowerBetter(sensorData.tds, threshold.tds_min, threshold.tds_max),
+        tss: subIndexLowerBetter(sensorData.turbidity, threshold.tss_min, threshold.tss_max),
     };
 
     let totalWeight = 0;
