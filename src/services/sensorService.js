@@ -25,11 +25,12 @@ async function saveSensorData(deviceCode, ph, turbidity, tds, temperature) {
   // 3. Hitung WQI
   const wqi = calculateWQI({ ph, turbidity, tds, temperature }, threshold);
 
-  // 4. Simpan data sensor
+  // 4. Simpan data sensor (sekarang include location snapshot dari device)
   const savedData = await sensorRepository.insert(
-    device.id, ph, turbidity, tds, temperature, wqi.wqi_score, wqi.wqi_status
+    device.id, device.location, ph, turbidity, tds, temperature, wqi.wqi_score, wqi.wqi_status
   );
 
+  // 4.5 Update last_seen device
   await deviceRepository.updateLastSeen(device.id);
 
   // 5. Cek threshold & simpan alerts

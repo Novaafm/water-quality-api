@@ -49,6 +49,7 @@ const initDB = async () => {
       CREATE TABLE sensor_data (
         id SERIAL PRIMARY KEY,
         device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        location VARCHAR(255),
         ph DECIMAL(5,2),
         turbidity DECIMAL(8,2),
         tds DECIMAL(8,2),
@@ -66,10 +67,10 @@ const initDB = async () => {
         id SERIAL PRIMARY KEY,
         ph_min DECIMAL(5,2) DEFAULT 6.5,
         ph_max DECIMAL(5,2) DEFAULT 8.5,
-        temp_min DECIMAL(5,2) DEFAULT 25.0,
-        temp_max DECIMAL(5,2) DEFAULT 30.0,
+        temp_min DECIMAL(5,2) DEFAULT 19.0,
+        temp_max DECIMAL(5,2) DEFAULT 31.0,
         tds_min DECIMAL(8,2) DEFAULT 0,
-        tds_max DECIMAL(8,2) DEFAULT 500.0,
+        tds_max DECIMAL(8,2) DEFAULT 1000.0,
         tss_min DECIMAL(8,2) DEFAULT 0,
         tss_max DECIMAL(8,2) DEFAULT 25.0,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -131,6 +132,7 @@ const initDB = async () => {
       CREATE INDEX idx_sensor_created ON sensor_data(created_at DESC);
       CREATE INDEX idx_sensor_device ON sensor_data(device_id);
       CREATE INDEX idx_sensor_wqi ON sensor_data(wqi_status);
+      CREATE INDEX idx_sensor_location ON sensor_data(location);
       CREATE INDEX idx_messages_session ON chat_messages(session_id);
       CREATE INDEX idx_alerts_read ON alerts(is_read);
       CREATE INDEX idx_alerts_created ON alerts(created_at DESC);
@@ -141,14 +143,14 @@ const initDB = async () => {
     // ---- 8. Default device ----
     await pool.query(`
       INSERT INTO devices (device_code, location)
-      VALUES ('esp32-01', 'Saluran Air Telkom University');
+      VALUES ('UNIFLOW-01', 'Saluran Air Telkom University');
     `);
-    console.log("Default device esp32-01 registered");
+    console.log("Default device UNIFLOW-01 registered");
 
     console.log("\n🎉 Database initialization complete!");
     console.log("\n📋 Tables created (6):");
     console.log("   1. devices (device registry)");
-    console.log("   2. sensor_data (sensor readings + WQI)");
+    console.log("   2. sensor_data (sensor readings + WQI + location snapshot)");
     console.log("   3. thresholds (Permenkes standards)");
     console.log("   4. alerts (auto notifications)");
     console.log("   5. chat_sessions (AI chat sessions)");
