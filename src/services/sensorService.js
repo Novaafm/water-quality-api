@@ -74,8 +74,8 @@ async function getTodayStats() {
   return await sensorRepository.getStatsToday();
 }
 
-async function exportCSV(days) {
-  const rows = await sensorRepository.findForExport(days);
+async function exportCSV({ days, zone, start, end } = {}) {
+  const rows = await sensorRepository.findForExport({ days, zone, start, end });
 
   if (rows.length === 0) return null;
 

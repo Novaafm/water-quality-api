@@ -68,19 +68,24 @@ async function getStats(req, res) {
 async function exportCSV(req, res) {
     try {
         const days = parseInt(req.query.days) || 90;
-        const csv = await sensorService.exportCSV(days);
+        const zone = req.query.zone || null;
+        const start = req.query.start || null;
+        const end = req.query.end || null;
+
+        const csv = await sensorService.exportCSV({ days, zone, start, end });
 
         if (!csv) {
             return res.status(404).json({ error: "Tidak ada data dalam rentang waktu tersebut" });
         }
 
-        res.setHeader("Content-Type", "text/csv");
         const now = new Date().toLocaleString("id-ID", {
             timeZone: "Asia/Jakarta",
             year: "numeric", month: "2-digit", day: "2-digit",
             hour: "2-digit", minute: "2-digit", second: "2-digit",
             hour12: false
         }).replace(/[/:]/g, "-").replace(/, /g, "_");
+
+        res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", `attachment; filename=data_kualitas_air_${now}.csv`);
         res.send(csv);
     } catch (err) {

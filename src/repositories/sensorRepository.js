@@ -55,9 +55,9 @@ async function getStatsToday() {
   return result.rows[0];
 }
 
-async function findForExport(days = 90) {
-  const result = await pool.query(
-    `SELECT 
+async function findForExport({ days, zone, start, end } = {}) {
+  let query = `
+    SELECT 
       s.id,
       d.device_code,
       s.location,
@@ -68,12 +68,31 @@ async function findForExport(days = 90) {
       s.wqi_score,
       s.wqi_status,
       s.created_at
-     FROM sensor_data s
-     LEFT JOIN devices d ON s.device_id = d.id
-     WHERE s.created_at >= NOW() - INTERVAL '1 day' * $1
-     ORDER BY s.created_at DESC`,
-    [days]
-  );
+    FROM sensor_data s
+    LEFT JOIN devices d ON s.device_id = d.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  // Filter by date range
+  if (start && end) {
+    params.push(start, end);
+    query += ` AND s.created_at >= $${params.length - 1} AND s.created_at <= $${params.length}`;
+  } else {
+    const d = days || 90;
+    params.push(d);
+    query += ` AND s.created_at >= NOW() - INTERVAL '1 day' * $${params.length}`;
+  }
+
+  // Filter by zone/location
+  if (zone) {
+    params.push(zone);
+    query += ` AND s.location = $${params.length}`;
+  }
+
+  query += ` ORDER BY s.created_at DESC`;
+
+  const result = await pool.query(query, params);
   return result.rows;
 }
 
