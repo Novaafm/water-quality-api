@@ -69,8 +69,16 @@ async function exportCSV(req, res) {
     try {
         const days = parseInt(req.query.days) || 90;
         const zone = req.query.zone || null;
-        const start = req.query.start || null;
-        const end = req.query.end || null;
+        let start = req.query.start || null;
+        let end = req.query.end || null;
+
+        // Auto-append waktu jika user cuma kirim tanggal
+        if (start && !start.includes(" ") && !start.includes("T")) {
+            start = start + " 00:00:00";
+        }
+        if (end && !end.includes(" ") && !end.includes("T")) {
+            end = end + " 23:59:59";
+        }
 
         const csv = await sensorService.exportCSV({ days, zone, start, end });
 
