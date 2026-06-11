@@ -44,11 +44,26 @@ const initDB = async () => {
     `);
     console.log("Table devices created");
 
-    // ---- 2. sensor_data ----
+    // ---- 2. measurement_sessions ----
+    await pool.query(`
+      CREATE TABLE measurement_sessions (
+        id SERIAL PRIMARY KEY,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        location VARCHAR(255),
+        start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        end_time TIMESTAMP DEFAULT NULL,
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'completed')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("Table measurement_sessions created");
+
+    // ---- 3. sensor_data ----
     await pool.query(`
       CREATE TABLE sensor_data (
         id SERIAL PRIMARY KEY,
         device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        session_id INTEGER REFERENCES measurement_sessions(id) ON DELETE SET NULL,
         location VARCHAR(255),
         ph DECIMAL(5,2),
         turbidity DECIMAL(8,2),
@@ -61,7 +76,7 @@ const initDB = async () => {
     `);
     console.log("Table sensor_data created");
 
-    // ---- 3. thresholds ----
+    // ---- 4. thresholds ----
     await pool.query(`
       CREATE TABLE thresholds (
         id SERIAL PRIMARY KEY,
@@ -87,7 +102,7 @@ const initDB = async () => {
     `);
     console.log("Default thresholds (Permenkes No. 32/2017) inserted");
 
-    // ---- 4. alerts ----
+    // ---- 5. alerts ----
     await pool.query(`
       CREATE TABLE alerts (
         id SERIAL PRIMARY KEY,
@@ -104,7 +119,7 @@ const initDB = async () => {
     `);
     console.log("Table alerts created");
 
-    // ---- 5. chat_sessions ----
+    // ---- 6. chat_sessions ----
     await pool.query(`
       CREATE TABLE chat_sessions (
         id SERIAL PRIMARY KEY,
@@ -115,7 +130,7 @@ const initDB = async () => {
     `);
     console.log("Table chat_sessions created");
 
-    // ---- 6. chat_messages ----
+    // ---- 7. chat_messages ----
     await pool.query(`
       CREATE TABLE chat_messages (
         id SERIAL PRIMARY KEY,
@@ -127,7 +142,7 @@ const initDB = async () => {
     `);
     console.log("Table chat_messages created");
 
-    // ---- 7. Indexes ----
+    // ---- 8. Indexes ----
     await pool.query(`
       CREATE INDEX idx_sensor_created ON sensor_data(created_at DESC);
       CREATE INDEX idx_sensor_device ON sensor_data(device_id);
@@ -137,10 +152,13 @@ const initDB = async () => {
       CREATE INDEX idx_alerts_read ON alerts(is_read);
       CREATE INDEX idx_alerts_created ON alerts(created_at DESC);
       CREATE INDEX idx_devices_code ON devices(device_code);
+      CREATE INDEX idx_sensor_session ON sensor_data(session_id);
+      CREATE INDEX idx_measurement_device ON measurement_sessions(device_id);
+      CREATE INDEX idx_measurement_status ON measurement_sessions(status);
     `);
     console.log("Indexes created");
 
-    // ---- 8. Default device ----
+    // ---- 9. Default device ----
     await pool.query(`
       INSERT INTO devices (device_code, location)
       VALUES ('UNIFLOW-01', 'Saluran Air Telkom University');

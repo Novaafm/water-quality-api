@@ -9,6 +9,7 @@ const thresholdRoutes = require("./routes/thresholdRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const deviceRoutes = require("./routes/deviceRoutes");
 const deviceRepository = require("./repositories/deviceRepository");
+const measurementRoutes = require("./routes/measurementRoutes");
 
 // Import MQTT
 const connectMQTT = require("./config/mqtt");
@@ -37,6 +38,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/threshold", thresholdRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/devices", deviceRoutes);
+app.use("/api/measurements", measurementRoutes);
 
 // Health check
 app.get("/", (req, res) => {
@@ -75,6 +77,12 @@ app.get("/", (req, res) => {
         "GET /api/chat/sessions": "Ambil semua sesi",
         "GET /api/chat/sessions/:id/messages": "Ambil history pesan",
         "POST /api/chat/sessions/:id/messages": "Kirim pesan ke AI",
+      },
+      measurements: {
+        "POST /api/measurements/start": "Mulai sesi pengukuran",
+        "POST /api/measurements/stop": "Selesai sesi pengukuran",
+        "GET /api/measurements": "Ambil semua sesi",
+        "GET /api/measurements/:id": "Detail sesi",
       },
     },
   });

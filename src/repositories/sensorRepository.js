@@ -4,13 +4,13 @@ const pool = require("../config/database");
 // Semua query database untuk tabel sensor_data
 // ============================================
 
-async function insert(deviceId, location, ph, turbidity, tds, temperature, wqiScore, wqiStatus) {
+async function insert(deviceId, location, sessionId, ph, turbidity, tds, temperature, wqiScore, wqiStatus) {
   const result = await pool.query(
     `INSERT INTO sensor_data 
-      (device_id, location, ph, turbidity, tds, temperature, wqi_score, wqi_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      (device_id, location, session_id, ph, turbidity, tds, temperature, wqi_score, wqi_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [deviceId, location, ph, turbidity, tds, temperature, wqiScore, wqiStatus]
+    [deviceId, location, sessionId, ph, turbidity, tds, temperature, wqiScore, wqiStatus]
   );
   return result.rows[0];
 }
@@ -61,6 +61,7 @@ async function findForExport({ days, zone, start, end } = {}) {
       s.id,
       d.device_code,
       s.location,
+      s.session_id,
       s.ph,
       s.turbidity AS tss_ntu,
       s.tds,
@@ -74,7 +75,6 @@ async function findForExport({ days, zone, start, end } = {}) {
   `;
   const params = [];
 
-  // Filter by date range
   if (start && end) {
     params.push(start, end);
     query += ` AND s.created_at >= $${params.length - 1} AND s.created_at <= $${params.length}`;
@@ -84,13 +84,12 @@ async function findForExport({ days, zone, start, end } = {}) {
     query += ` AND s.created_at >= NOW() - INTERVAL '1 day' * $${params.length}`;
   }
 
-  // Filter by zone/location
   if (zone) {
     params.push(zone);
     query += ` AND s.location = $${params.length}`;
   }
 
-  query += ` ORDER BY s.created_at DESC`;
+  query += ` ORDER BY s.created_at ASC`;
 
   const result = await pool.query(query, params);
   return result.rows;
