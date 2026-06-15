@@ -1,5 +1,8 @@
-const { Pool } = require("pg");
+const { Pool, types } = require("pg");
 require("dotenv").config();
+
+// Fix: Return timestamps dengan offset WIB (+07:00) bukan UTC (Z)
+types.setTypeParser(1114, (str) => str.replace(" ", "T") + "+07:00");
 
 const pool = new Pool({
   host: process.env.DB_HOST,
