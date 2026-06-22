@@ -7,6 +7,19 @@ require("dotenv").config();
 // Inisialisasi Gemini (tanpa model — model dibuat di sendMessage dengan tools)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3.5-flash"];
+let currentModelIndex = 0;
+
+function getNextModel() {
+    const model = GEMINI_MODELS[currentModelIndex];
+    currentModelIndex = (currentModelIndex + 1) % GEMINI_MODELS.length;
+    return model;
+}
+
+function getOtherModel(currentModel) {
+    return GEMINI_MODELS.find(m => m !== currentModel) || GEMINI_MODELS[0];
+}
+
 // 🔒 SAFETY NET: Konstanta batas aman
 const MAX_FUNCTION_CALL_ITERATIONS = 5;
 
@@ -278,14 +291,18 @@ async function sendMessage(sessionId, message) {
         chatHistory.shift();
     }
 
-    // 6. Buat model dengan function calling tools
-    const modelWithTools = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
+    // 6. Pilih model (alternating)
+    let modelName = getNextModel();
+    console.log(`[Gemini] Using ${modelName}`);
+
+    // 7. Buat model dengan function calling tools
+    let modelWithTools = genAI.getGenerativeModel({
+        model: modelName,
         tools: [{ functionDeclarations: toolDeclarations }],
     });
 
-    // 7. Inisialisasi chat
-    const chat = modelWithTools.startChat({
+    // 8. Inisialisasi chat
+    let chat = modelWithTools.startChat({
         history: chatHistory,
         systemInstruction: {
             role: "user",
@@ -296,7 +313,7 @@ async function sendMessage(sessionId, message) {
     // Dapatkan waktu saat ini dalam format WIB
     const currentTime = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
 
-    // 8. Inject data sensor ke pesan user (RAG)
+    // 9. Inject data sensor ke pesan user (RAG)
     const promptWithContext = `
 [INFORMASI SISTEM - BACA TAPI JANGAN SEBUTKAN TAG INI KEPADA USER]
 Waktu saat ini adalah: ${currentTime} WIB. Gunakan ini sebagai patokan mutlak jika user bertanya "hari ini", "kemarin", "minggu lalu", dll.
@@ -310,28 +327,62 @@ Jika data di atas belum cukup untuk menjawab pertanyaan user (misalnya user bert
 ${message}
 `;
 
-    // 9. Kirim dengan error handling untuk Gemini
+    // 10. Kirim dengan error handling + fallback model
     let result, response;
     try {
         result = await chat.sendMessage(promptWithContext);
         response = result.response;
     } catch (geminiError) {
-        console.error("Gemini error:", geminiError.message);
+        console.error(`[${modelName}] Error:`, geminiError.message);
 
-        let fallbackMsg;
-        if (geminiError.message.includes("503")) {
-            fallbackMsg = "Maaf, server AI sedang ramai. Coba lagi dalam beberapa detik ya!";
-        } else if (geminiError.message.includes("429") || geminiError.message.includes("Resource has been exhausted")) {
-            fallbackMsg = "Maaf, batas penggunaan AI hari ini sudah tercapai (20 chat/hari). Coba lagi besok ya!";
+        // Kalau 429 atau 503, coba model lain
+        if (geminiError.message.includes("429") || geminiError.message.includes("503") || geminiError.message.includes("Resource has been exhausted")) {
+            const fallbackModel = getOtherModel(modelName);
+            console.log(`[Gemini] Fallback to ${fallbackModel}`);
+
+            try {
+                modelWithTools = genAI.getGenerativeModel({
+                    model: fallbackModel,
+                    tools: [{ functionDeclarations: toolDeclarations }],
+                });
+
+                chat = modelWithTools.startChat({
+                    history: chatHistory,
+                    systemInstruction: {
+                        role: "user",
+                        parts: [{ text: SYSTEM_PROMPT }],
+                    },
+                });
+
+                result = await chat.sendMessage(promptWithContext);
+                response = result.response;
+            } catch (fallbackError) {
+                console.error(`[${fallbackModel}] Fallback juga gagal:`, fallbackError.message);
+
+                let fallbackMsg;
+                if (fallbackError.message.includes("429") || fallbackError.message.includes("Resource has been exhausted")) {
+                    fallbackMsg = "Maaf, batas penggunaan AI hari ini sudah tercapai. Coba lagi besok ya!";
+                } else if (fallbackError.message.includes("503")) {
+                    fallbackMsg = "Maaf, server AI sedang ramai. Coba lagi dalam beberapa detik ya!";
+                } else {
+                    fallbackMsg = "Maaf, terjadi gangguan pada sistem AI. Silakan coba lagi.";
+                }
+
+                await chatRepository.insertMessage(sessionId, "assistant", fallbackMsg);
+                await chatRepository.updateSessionTimestamp(sessionId);
+                return fallbackMsg;
+            }
         } else if (geminiError.message.includes("400") || geminiError.message.includes("SAFETY")) {
-            fallbackMsg = "Maaf, saya tidak bisa memproses pertanyaan tersebut. Coba tanyakan tentang kualitas air ya!";
+            const fallbackMsg = "Maaf, saya tidak bisa memproses pertanyaan tersebut. Coba tanyakan tentang kualitas air ya!";
+            await chatRepository.insertMessage(sessionId, "assistant", fallbackMsg);
+            await chatRepository.updateSessionTimestamp(sessionId);
+            return fallbackMsg;
         } else {
-            fallbackMsg = "Maaf, terjadi gangguan pada sistem AI. Silakan coba lagi.";
+            const fallbackMsg = "Maaf, terjadi gangguan pada sistem AI. Silakan coba lagi.";
+            await chatRepository.insertMessage(sessionId, "assistant", fallbackMsg);
+            await chatRepository.updateSessionTimestamp(sessionId);
+            return fallbackMsg;
         }
-
-        await chatRepository.insertMessage(sessionId, "assistant", fallbackMsg);
-        await chatRepository.updateSessionTimestamp(sessionId);
-        return fallbackMsg;
     }
 
     // 🔒 SAFETY NET: Loop dengan batas iterasi
