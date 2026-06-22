@@ -7,7 +7,7 @@ require("dotenv").config();
 // Inisialisasi Gemini (tanpa model — model dibuat di sendMessage dengan tools)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3.0-flash", "gemini-3.5-flash"];
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3.5-flash"];
 let currentModelIndex = 0;
 
 function getNextModel() {
