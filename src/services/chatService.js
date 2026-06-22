@@ -8,7 +8,7 @@ require("dotenv").config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Penyesuaian nama model. Gunakan versi preview untuk Gemini 3
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3-flash-preview", "gemini-3.5-flash"];
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3-flash", "gemini-3.5-flash"];
 let currentModelIndex = 0;
 
 function getNextModel() {
