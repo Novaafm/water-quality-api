@@ -214,6 +214,17 @@ async function getWeeklyStats(weeks = 12) {
   return result.rows;
 }
 
+async function getAvailableLocations() {
+  const result = await pool.query(`
+    SELECT DISTINCT location, COUNT(*) as total_readings
+    FROM sensor_data
+    WHERE location IS NOT NULL
+    GROUP BY location
+    ORDER BY total_readings DESC
+  `);
+  return result.rows;
+}
+
 module.exports = {
   insert,
   findAll,
@@ -226,4 +237,5 @@ module.exports = {
   getWqiStatusCount,
   getDailyStats,
   getWeeklyStats,
+  getAvailableLocations,
 };

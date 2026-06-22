@@ -113,6 +113,15 @@ async function buildSensorContext() {
             context += `\n[PERINGATAN] Ada ${unreadCount} alert aktif yang belum dibaca.\n`;
         }
 
+        // Daftar lokasi tersedia
+        const locations = await sensorRepository.getAvailableLocations();
+        if (locations.length > 0) {
+            context += `\n[LOKASI TERSEDIA]:\n`;
+            for (const loc of locations) {
+                context += `- ${loc.location} (${loc.total_readings} pembacaan)\n`;
+            }
+        }
+
         return context;
     } catch (err) {
         console.error("Error bangun sensor context:", err.message);
@@ -301,9 +310,29 @@ Jika data di atas belum cukup untuk menjawab pertanyaan user (misalnya user bert
 ${message}
 `;
 
-    // 9. Kirim dan handle function calling
-    let result = await chat.sendMessage(promptWithContext);
-    let response = result.response;
+    // 9. Kirim dengan error handling untuk Gemini
+    let result, response;
+    try {
+        result = await chat.sendMessage(promptWithContext);
+        response = result.response;
+    } catch (geminiError) {
+        console.error("Gemini error:", geminiError.message);
+
+        let fallbackMsg;
+        if (geminiError.message.includes("503")) {
+            fallbackMsg = "Maaf, server AI sedang ramai. Coba lagi dalam beberapa detik ya!";
+        } else if (geminiError.message.includes("429") || geminiError.message.includes("Resource has been exhausted")) {
+            fallbackMsg = "Maaf, batas penggunaan AI hari ini sudah tercapai (20 chat/hari). Coba lagi besok ya!";
+        } else if (geminiError.message.includes("400") || geminiError.message.includes("SAFETY")) {
+            fallbackMsg = "Maaf, saya tidak bisa memproses pertanyaan tersebut. Coba tanyakan tentang kualitas air ya!";
+        } else {
+            fallbackMsg = "Maaf, terjadi gangguan pada sistem AI. Silakan coba lagi.";
+        }
+
+        await chatRepository.insertMessage(sessionId, "assistant", fallbackMsg);
+        await chatRepository.updateSessionTimestamp(sessionId);
+        return fallbackMsg;
+    }
 
     // 🔒 SAFETY NET: Loop dengan batas iterasi
     let iterations = 0;
@@ -342,14 +371,19 @@ ${message}
 
         console.log(`Hasil function: ${functionResult.substring(0, 200)}...`);
 
-        // Kirim hasil function kembali ke AI
-        result = await chat.sendMessage([{
-            functionResponse: {
-                name: functionName,
-                response: { result: functionResult },
-            },
-        }]);
-        response = result.response;
+        // Kirim hasil function kembali ke AI (dengan error handling)
+        try {
+            result = await chat.sendMessage([{
+                functionResponse: {
+                    name: functionName,
+                    response: { result: functionResult },
+                },
+            }]);
+            response = result.response;
+        } catch (geminiError) {
+            console.error("Gemini error saat function calling:", geminiError.message);
+            break;
+        }
     }
 
     // 🔒 SAFETY NET: Log warning kalau iterasi mentok
