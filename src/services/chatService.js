@@ -4,10 +4,16 @@ const alertRepository = require("../repositories/alertRepository");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
 
-// Inisialisasi Gemini (tanpa model — model dibuat di sendMessage dengan tools)
+// Inisialisasi Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3.5-flash"];
+// Susunan array dengan versi Lite di akhir
+const GEMINI_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-3-flash-preview",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite"
+];
 let currentModelIndex = 0;
 
 function getNextModel() {
@@ -18,11 +24,7 @@ function getNextModel() {
 
 function getOtherModel(currentModel) {
     const currentIndex = GEMINI_MODELS.indexOf(currentModel);
-
-    // Jika currentModel tidak valid, kembalikan model pertama
     if (currentIndex === -1) return GEMINI_MODELS[0];
-
-    // Geser ke indeks berikutnya. Jika sudah di ujung array, kembali ke 0
     const nextIndex = (currentIndex + 1) % GEMINI_MODELS.length;
     return GEMINI_MODELS[nextIndex];
 }
@@ -49,7 +51,7 @@ Karakteristik kamu:
 - Kamu menjelaskan data sensor dengan bahasa yang mudah dipahami
 - Kamu memahami Water Quality Index (WQI) dengan status: Baik (>=80), Sedang (50-79), Buruk (<50)
 - Saat memberikan data rata-rata atau statistik, SELALU tampilkan keempat parameter (pH, Turbidity, TDS, Suhu) dan WQI secara lengkap. Jangan pernah melewatkan parameter apapun.
-- Jika ditanya di luar topik kualitas air, kamu mengarahkan kembali ke topik utama
+- TOLAK SECARA TEGAS pertanyaan yang tidak berhubungan dengan kualitas air, sensor, atau Telkom University. JANGAN PERNAH memberikan jawaban (meskipun kamu tahu) untuk pertanyaan di luar topik tersebut. Langsung minta maaf dan arahkan pengguna kembali ke topik pemantauan air.
 - Jika user bertanya tentang data historis atau rentang waktu tertentu, gunakan function/tool yang tersedia
 - Jika user menyebutkan zona/lokasi tertentu, gunakan parameter zone pada function yang tersedia
 
@@ -74,7 +76,6 @@ async function buildSensorContext() {
 
         let context = "\n\n[DATA SENSOR REAL-TIME]\n";
 
-        // Data terbaru
         if (latest) {
             context += `Device: ${latest.device_code || "Unknown"} (${latest.location || "Lokasi belum ditentukan"})\n`;
             context += `Data terakhir (${latest.created_at}):\n`;
@@ -88,7 +89,6 @@ async function buildSensorContext() {
             context += "Belum ada data sensor yang tersedia.\n";
         }
 
-        // Statistik hari ini
         if (statsToday && parseInt(statsToday.total_readings) > 0) {
             context += `\n[STATISTIK HARI INI] (${statsToday.total_readings} pembacaan):\n`;
             context += `- Rata-rata pH: ${statsToday.avg_ph} | Rata-rata TDS: ${statsToday.avg_tds} ppm\n`;
@@ -96,7 +96,6 @@ async function buildSensorContext() {
             context += `- Rata-rata WQI: ${statsToday.avg_wqi_score}\n`;
         }
 
-        // Statistik 7 hari
         if (stats7days && parseInt(stats7days.total_readings) > 0) {
             context += `\n[STATISTIK 7 HARI TERAKHIR] (${stats7days.total_readings} pembacaan):\n`;
             context += `- Rata-rata pH: ${stats7days.avg_ph} (min: ${stats7days.min_ph}, max: ${stats7days.max_ph})\n`;
@@ -105,7 +104,6 @@ async function buildSensorContext() {
             context += `- Rata-rata WQI: ${stats7days.avg_wqi_score} (min: ${stats7days.min_wqi}, max: ${stats7days.max_wqi})\n`;
         }
 
-        // Statistik 30 hari
         if (stats30days && parseInt(stats30days.total_readings) > 0) {
             context += `\n[STATISTIK 30 HARI TERAKHIR] (${stats30days.total_readings} pembacaan):\n`;
             context += `- Rata-rata pH: ${stats30days.avg_ph} | Rata-rata TDS: ${stats30days.avg_tds} ppm\n`;
@@ -113,14 +111,12 @@ async function buildSensorContext() {
             context += `- Rata-rata WQI: ${stats30days.avg_wqi_score} (min: ${stats30days.min_wqi}, max: ${stats30days.max_wqi})\n`;
         }
 
-        // Statistik 90 hari
         if (stats90days && parseInt(stats90days.total_readings) > 0) {
             context += `\n[STATISTIK 90 HARI TERAKHIR] (${stats90days.total_readings} pembacaan):\n`;
             context += `- Rata-rata pH: ${stats90days.avg_ph} | Rata-rata TDS: ${stats90days.avg_tds} ppm\n`;
             context += `- Rata-rata WQI: ${stats90days.avg_wqi_score} (min: ${stats90days.min_wqi}, max: ${stats90days.max_wqi})\n`;
         }
 
-        // Distribusi status WQI 30 hari
         if (wqiDistribution.length > 0) {
             context += `\n[DISTRIBUSI STATUS WQI 30 HARI]:\n`;
             for (const row of wqiDistribution) {
@@ -128,12 +124,10 @@ async function buildSensorContext() {
             }
         }
 
-        // Alert aktif
         if (unreadCount > 0) {
             context += `\n[PERINGATAN] Ada ${unreadCount} alert aktif yang belum dibaca.\n`;
         }
 
-        // Daftar lokasi tersedia
         const locations = await sensorRepository.getAvailableLocations();
         if (locations.length > 0) {
             context += `\n[LOKASI TERSEDIA]:\n`;
@@ -151,7 +145,6 @@ async function buildSensorContext() {
 
 // ============================================
 // Function Calling: AI bisa query database sendiri
-// 🔒 SAFETY NET: Semua parameter di-clamp ke rentang aman
 // ============================================
 const availableFunctions = {
     getStatsByDateRange: async (startDate, endDate, zone) => {
@@ -200,7 +193,7 @@ const toolDeclarations = [
             properties: {
                 startDate: { type: "string", description: "Tanggal mulai format YYYY-MM-DD HH:mm:ss (contoh: 2026-06-08 00:00:00)" },
                 endDate: { type: "string", description: "Tanggal akhir format YYYY-MM-DD HH:mm:ss (contoh: 2026-06-08 23:59:59)" },
-                zone: { type: "string", description: "Nama zona/lokasi pengukuran (contoh: Asrama, Saluran Air GKU). Kosongkan jika user tidak menyebut lokasi spesifik." },
+                zone: { type: "string", description: "Nama zona/lokasi pengukuran. Kosongkan jika user tidak menyebut." },
             },
             required: ["startDate", "endDate"],
         },
@@ -230,7 +223,7 @@ const toolDeclarations = [
     },
     {
         name: "getDailyStats",
-        description: "Ambil statistik rata-rata sensor per hari. Gunakan saat user bertanya tentang tren harian, perbandingan antar hari, atau perkembangan kualitas air per hari.",
+        description: "Ambil statistik rata-rata sensor per hari. Gunakan saat user bertanya tentang tren harian.",
         parameters: {
             type: "object",
             properties: {
@@ -241,7 +234,7 @@ const toolDeclarations = [
     },
     {
         name: "getWeeklyStats",
-        description: "Ambil statistik rata-rata sensor per minggu. Gunakan saat user bertanya tentang tren mingguan, perbandingan antar minggu, atau perkembangan jangka panjang.",
+        description: "Ambil statistik rata-rata sensor per minggu. Gunakan saat user bertanya tentang tren mingguan.",
         parameters: {
             type: "object",
             properties: {
@@ -273,22 +266,15 @@ async function getSessionMessages(sessionId) {
 }
 
 async function sendMessage(sessionId, message) {
-    // 1. Cek sesi ada
     const session = await chatRepository.findSessionById(sessionId);
     if (!session) {
         throw { status: 404, message: "Sesi tidak ditemukan" };
     }
 
-    // 2. Simpan pesan user
     await chatRepository.insertMessage(sessionId, "user", message);
-
-    // 3. Ambil history 20 pesan terakhir
     const history = await chatRepository.findRecentMessages(sessionId, 20);
-
-    // 4. Ambil konteks sensor otomatis
     const sensorContext = await buildSensorContext();
 
-    // 5. Bangun conversation history
     const chatHistory = history.map((msg) => ({
         role: msg.role === "assistant" ? "model" : "user",
         parts: [{ text: msg.content }],
@@ -298,25 +284,7 @@ async function sendMessage(sessionId, message) {
         chatHistory.shift();
     }
 
-    // 6. Buat model dengan function calling tools
-    const modelWithTools = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
-        tools: [{ functionDeclarations: toolDeclarations }],
-    });
-
-    // 7. Inisialisasi chat
-    const chat = modelWithTools.startChat({
-        history: chatHistory,
-        systemInstruction: {
-            role: "user",
-            parts: [{ text: SYSTEM_PROMPT }],
-        },
-    });
-
-    // Dapatkan waktu saat ini dalam format WIB
     const currentTime = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
-
-    // 8. Inject data sensor ke pesan user (RAG)
     const promptWithContext = `
 [INFORMASI SISTEM - BACA TAPI JANGAN SEBUTKAN TAG INI KEPADA USER]
 Waktu saat ini adalah: ${currentTime} WIB. Gunakan ini sebagai patokan mutlak jika user bertanya "hari ini", "kemarin", "minggu lalu", dll.
@@ -330,21 +298,59 @@ Jika data di atas belum cukup untuk menjawab pertanyaan user (misalnya user bert
 ${message}
 `;
 
-    // 9. Kirim dengan error handling untuk Gemini
+    // Implementasi Fallback Logic yang Benar
+    let activeModelName = getNextModel();
+    let modelWithTools;
+    let chat;
     let result, response;
-    try {
-        result = await chat.sendMessage(promptWithContext);
-        response = result.response;
-    } catch (geminiError) {
-        console.error("Gemini error:", geminiError.message);
+    let success = false;
+    let attempts = 0;
+    const maxAttempts = GEMINI_MODELS.length;
+    let lastError = null;
 
+    while (attempts < maxAttempts && !success) {
+        try {
+            console.log(`[Gemini] Mencoba model: ${activeModelName}`);
+
+            modelWithTools = genAI.getGenerativeModel({
+                model: activeModelName,
+                tools: [{ functionDeclarations: toolDeclarations }],
+            });
+
+            chat = modelWithTools.startChat({
+                history: chatHistory,
+                systemInstruction: {
+                    role: "user",
+                    parts: [{ text: SYSTEM_PROMPT }],
+                },
+            });
+
+            result = await chat.sendMessage(promptWithContext);
+            response = result.response;
+            success = true; // Berhasil! Keluar dari loop try-catch.
+
+        } catch (geminiError) {
+            console.error(`[Gemini Error - ${activeModelName}]:`, geminiError.message);
+            lastError = geminiError;
+            attempts++;
+
+            if (attempts < maxAttempts) {
+                // Geser ke model selanjutnya jika yang ini gagal/habis kuota
+                activeModelName = getOtherModel(activeModelName);
+                console.log(`[Gemini] Fallback pindah ke model: ${activeModelName}`);
+            }
+        }
+    }
+
+    // Jika semua model di dalam array gagal (semua limit habis / server down)
+    if (!success) {
         let fallbackMsg;
-        if (geminiError.message.includes("503")) {
+        if (lastError.message.includes("503")) {
             fallbackMsg = "Maaf, server AI sedang ramai. Coba lagi dalam beberapa detik ya!";
-        } else if (geminiError.message.includes("429") || geminiError.message.includes("Resource has been exhausted")) {
-            fallbackMsg = "Maaf, batas penggunaan AI hari ini sudah tercapai (20 chat/hari). Coba lagi besok ya!";
-        } else if (geminiError.message.includes("400") || geminiError.message.includes("SAFETY")) {
-            fallbackMsg = "Maaf, saya tidak bisa memproses pertanyaan tersebut. Coba tanyakan tentang kualitas air ya!";
+        } else if (lastError.message.includes("429") || lastError.message.includes("Resource has been exhausted")) {
+            fallbackMsg = "Maaf, batas penggunaan AI saat ini sudah tercapai. Coba lagi dalam beberapa saat.";
+        } else if (lastError.message.includes("400") || lastError.message.includes("SAFETY")) {
+            fallbackMsg = "Maaf, pertanyaan tersebut tidak dapat diproses saat ini.";
         } else {
             fallbackMsg = "Maaf, terjadi gangguan pada sistem AI. Silakan coba lagi.";
         }
@@ -354,7 +360,7 @@ ${message}
         return fallbackMsg;
     }
 
-    // 🔒 SAFETY NET: Loop dengan batas iterasi
+    // 🔒 SAFETY NET: Iterasi function calling (diekskusi menggunakan model yang sukses di atas)
     let iterations = 0;
     while (
         response.candidates[0].content.parts.some(part => part.functionCall) &&
@@ -367,7 +373,6 @@ ${message}
 
         console.log(`[Iter ${iterations}/${MAX_FUNCTION_CALL_ITERATIONS}] AI memanggil function: ${functionName}(${JSON.stringify(functionArgs)})`);
 
-        // Eksekusi function
         const functionToCall = availableFunctions[functionName];
         let functionResult;
 
@@ -386,12 +391,9 @@ ${message}
                 functionResult = JSON.stringify({ error: `Function ${functionName} tidak tersedia` });
             }
         } catch (err) {
-            functionResult = JSON.stringify({ error: "Gagal mengambil data: " + err.message });
+            functionResult = JSON.stringify({ error: "Gagal mengambil data dari database PostgreSQL: " + err.message });
         }
 
-        console.log(`Hasil function: ${functionResult.substring(0, 200)}...`);
-
-        // Kirim hasil function kembali ke AI (dengan error handling)
         try {
             result = await chat.sendMessage([{
                 functionResponse: {
@@ -402,11 +404,10 @@ ${message}
             response = result.response;
         } catch (geminiError) {
             console.error("Gemini error saat function calling:", geminiError.message);
-            break;
+            break; // Jika saat di tengah function calling terjadi error API, hentikan loop.
         }
     }
 
-    // 🔒 SAFETY NET: Log warning kalau iterasi mentok
     if (iterations >= MAX_FUNCTION_CALL_ITERATIONS) {
         console.warn(`Max function call iterations (${MAX_FUNCTION_CALL_ITERATIONS}) tercapai untuk session ${sessionId}`);
     }
