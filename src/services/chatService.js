@@ -52,9 +52,9 @@ Karakteristik kamu:
 - Kamu menjelaskan data sensor dengan bahasa yang mudah dipahami
 - Kamu memahami Water Quality Index (WQI) dengan status: Baik (>=80), Sedang (50-79), Buruk (<50)
 - Saat memberikan data rata-rata atau statistik, SELALU tampilkan keempat parameter (pH, Turbidity, TDS, Suhu) dan WQI secara lengkap. Jangan pernah melewatkan parameter apapun.
+- Jika user menyebutkan zona/lokasi tertentu, SELALU gunakan parameter zone pada function yang tersedia. Jika hasil function menunjukkan data kosong atau total_readings 0, katakan secara jujur bahwa belum ada data untuk lokasi tersebut, jangan mengarang angka.
 - TOLAK SECARA TEGAS pertanyaan yang tidak berhubungan dengan kualitas air, sensor, atau Telkom University. JANGAN PERNAH memberikan jawaban (meskipun kamu tahu) untuk pertanyaan di luar topik tersebut. Langsung minta maaf dan arahkan pengguna kembali ke topik pemantauan air.
 - Jika user bertanya tentang data historis atau rentang waktu tertentu, gunakan function/tool yang tersedia
-- Jika user menyebutkan zona/lokasi tertentu, gunakan parameter zone pada function yang tersedia
 
 Standar kualitas air yang kamu gunakan (Permenkes No. 32/2017):
 - pH: Normal 6.5 - 8.5 (standar air bersih)
@@ -146,6 +146,8 @@ async function buildSensorContext() {
 
 // ============================================
 // Function Calling: AI bisa query database sendiri
+// PERUBAHAN: getRecentReadings, getDailyStats, getWeeklyStats
+// sekarang ikut menerima & meneruskan "zone" ke repository
 // ============================================
 const availableFunctions = {
     getStatsByDateRange: async (startDate, endDate, zone) => {
@@ -163,9 +165,10 @@ const availableFunctions = {
         const stats = await sensorRepository.getStatsByDateRange(startDate, endDate, zone || null);
         return JSON.stringify(stats);
     },
-    getRecentReadings: async (limit) => {
+    // PERUBAHAN: tambah parameter "zone", diteruskan ke repository
+    getRecentReadings: async (limit, zone) => {
         const safeLimit = clamp(limit, 1, 50);
-        const readings = await sensorRepository.getRecentReadings(safeLimit);
+        const readings = await sensorRepository.getRecentReadings(safeLimit, zone || null);
         return JSON.stringify(readings);
     },
     getStatsByPeriod: async (days, zone) => {
@@ -173,18 +176,25 @@ const availableFunctions = {
         const stats = await sensorRepository.getStatsByPeriod(safeDays, zone || null);
         return JSON.stringify(stats);
     },
-    getDailyStats: async (days) => {
+    // PERUBAHAN: tambah parameter "zone", diteruskan ke repository
+    getDailyStats: async (days, zone) => {
         const safeDays = clamp(days, 1, 90);
-        const stats = await sensorRepository.getDailyStats(safeDays);
+        const stats = await sensorRepository.getDailyStats(safeDays, zone || null);
         return JSON.stringify(stats);
     },
-    getWeeklyStats: async (weeks) => {
+    // PERUBAHAN: tambah parameter "zone", diteruskan ke repository
+    getWeeklyStats: async (weeks, zone) => {
         const safeWeeks = clamp(weeks, 1, 13);
-        const stats = await sensorRepository.getWeeklyStats(safeWeeks);
+        const stats = await sensorRepository.getWeeklyStats(safeWeeks, zone || null);
         return JSON.stringify(stats);
     },
 };
 
+// ============================================
+// PERUBAHAN: toolDeclarations — getRecentReadings, getDailyStats,
+// getWeeklyStats sekarang punya properti "zone" di parameters,
+// supaya Gemini tahu boleh mengirim filter lokasi untuk ketiganya.
+// ============================================
 const toolDeclarations = [
     {
         name: "getStatsByDateRange",
@@ -201,11 +211,12 @@ const toolDeclarations = [
     },
     {
         name: "getRecentReadings",
-        description: "Ambil beberapa data pembacaan sensor terbaru secara detail. Gunakan saat user ingin melihat data mentah atau detail pembacaan terakhir.",
+        description: "Ambil beberapa data pembacaan sensor terbaru secara detail. Gunakan saat user ingin melihat data mentah atau detail pembacaan terakhir. Bisa filter per zona/lokasi.",
         parameters: {
             type: "object",
             properties: {
                 limit: { type: "number", description: "Jumlah data yang ingin diambil (default 10, max 50)" },
+                zone: { type: "string", description: "Nama zona/lokasi pengukuran. Kosongkan jika user tidak menyebut lokasi spesifik." },
             },
             required: ["limit"],
         },
@@ -224,22 +235,24 @@ const toolDeclarations = [
     },
     {
         name: "getDailyStats",
-        description: "Ambil statistik rata-rata sensor per hari. Gunakan saat user bertanya tentang tren harian.",
+        description: "Ambil statistik rata-rata sensor per hari. Gunakan saat user bertanya tentang tren harian. Bisa filter per zona/lokasi.",
         parameters: {
             type: "object",
             properties: {
                 days: { type: "number", description: "Jumlah hari ke belakang (default 7, max 90)" },
+                zone: { type: "string", description: "Nama zona/lokasi pengukuran. Kosongkan jika user tidak menyebut lokasi spesifik." },
             },
             required: ["days"],
         },
     },
     {
         name: "getWeeklyStats",
-        description: "Ambil statistik rata-rata sensor per minggu. Gunakan saat user bertanya tentang tren mingguan.",
+        description: "Ambil statistik rata-rata sensor per minggu. Gunakan saat user bertanya tentang tren mingguan. Bisa filter per zona/lokasi.",
         parameters: {
             type: "object",
             properties: {
                 weeks: { type: "number", description: "Jumlah minggu ke belakang (default 12, max 13 sesuai retensi data 90 hari)" },
+                zone: { type: "string", description: "Nama zona/lokasi pengukuran. Kosongkan jika user tidak menyebut lokasi spesifik." },
             },
             required: ["weeks"],
         },
@@ -378,16 +391,18 @@ ${message}
         let functionResult;
 
         try {
+            // PERUBAHAN: getRecentReadings, getDailyStats, getWeeklyStats
+            // sekarang ikut mengirim functionArgs.zone
             if (functionName === "getStatsByDateRange") {
                 functionResult = await functionToCall(functionArgs.startDate, functionArgs.endDate, functionArgs.zone);
             } else if (functionName === "getRecentReadings") {
-                functionResult = await functionToCall(functionArgs.limit || 10);
+                functionResult = await functionToCall(functionArgs.limit || 10, functionArgs.zone);
             } else if (functionName === "getStatsByPeriod") {
                 functionResult = await functionToCall(functionArgs.days, functionArgs.zone);
             } else if (functionName === "getDailyStats") {
-                functionResult = await functionToCall(functionArgs.days || 7);
+                functionResult = await functionToCall(functionArgs.days || 7, functionArgs.zone);
             } else if (functionName === "getWeeklyStats") {
-                functionResult = await functionToCall(functionArgs.weeks || 12);
+                functionResult = await functionToCall(functionArgs.weeks || 12, functionArgs.zone);
             } else {
                 functionResult = JSON.stringify({ error: `Function ${functionName} tidak tersedia` });
             }

@@ -155,15 +155,29 @@ async function getStatsByDateRange(startDate, endDate, location) {
   return result.rows[0];
 }
 
-async function getRecentReadings(limit = 10) {
-  const result = await pool.query(
-    `SELECT s.ph, s.turbidity, s.tds, s.temperature, s.wqi_score, s.wqi_status, s.created_at,
-            s.location, d.device_code
-     FROM sensor_data s
-     LEFT JOIN devices d ON s.device_id = d.id
-     ORDER BY s.created_at DESC LIMIT $1`,
-    [limit]
-  );
+// ============================================
+// PERUBAHAN: getRecentReadings sekarang menerima "zone"
+// Jika zone diisi, query bertambah filter WHERE location = zone
+// ============================================
+async function getRecentReadings(limit = 10, zone) {
+  let query = `
+    SELECT s.ph, s.turbidity, s.tds, s.temperature, s.wqi_score, s.wqi_status, s.created_at,
+           s.location, d.device_code
+    FROM sensor_data s
+    LEFT JOIN devices d ON s.device_id = d.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (zone) {
+    params.push(zone);
+    query += ` AND s.location = $${params.length}`;
+  }
+
+  params.push(limit);
+  query += ` ORDER BY s.created_at DESC LIMIT $${params.length}`;
+
+  const result = await pool.query(query, params);
   return result.rows;
 }
 
@@ -178,8 +192,11 @@ async function getWqiStatusCount(days) {
   return result.rows;
 }
 
-async function getDailyStats(days = 7) {
-  const result = await pool.query(`
+// ============================================
+// PERUBAHAN: getDailyStats sekarang menerima "zone"
+// ============================================
+async function getDailyStats(days = 7, zone) {
+  let query = `
     SELECT
       DATE(created_at) as date,
       COUNT(*) as total_readings,
@@ -190,14 +207,25 @@ async function getDailyStats(days = 7) {
       ROUND(AVG(wqi_score)::numeric, 2) as avg_wqi_score
     FROM sensor_data
     WHERE created_at >= NOW() - INTERVAL '1 day' * $1
-    GROUP BY DATE(created_at)
-    ORDER BY date DESC
-  `, [days]);
+  `;
+  const params = [days];
+
+  if (zone) {
+    params.push(zone);
+    query += ` AND location = $${params.length}`;
+  }
+
+  query += ` GROUP BY DATE(created_at) ORDER BY date DESC`;
+
+  const result = await pool.query(query, params);
   return result.rows;
 }
 
-async function getWeeklyStats(weeks = 12) {
-  const result = await pool.query(`
+// ============================================
+// PERUBAHAN: getWeeklyStats sekarang menerima "zone"
+// ============================================
+async function getWeeklyStats(weeks = 12, zone) {
+  let query = `
     SELECT
       DATE_TRUNC('week', created_at)::date as week_start,
       COUNT(*) as total_readings,
@@ -208,9 +236,17 @@ async function getWeeklyStats(weeks = 12) {
       ROUND(AVG(wqi_score)::numeric, 2) as avg_wqi_score
     FROM sensor_data
     WHERE created_at >= NOW() - INTERVAL '1 week' * $1
-    GROUP BY DATE_TRUNC('week', created_at)
-    ORDER BY week_start DESC
-  `, [weeks]);
+  `;
+  const params = [weeks];
+
+  if (zone) {
+    params.push(zone);
+    query += ` AND location = $${params.length}`;
+  }
+
+  query += ` GROUP BY DATE_TRUNC('week', created_at) ORDER BY week_start DESC`;
+
+  const result = await pool.query(query, params);
   return result.rows;
 }
 
