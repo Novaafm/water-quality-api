@@ -18,7 +18,7 @@ async function saveSensorData(deviceCode, ph, turbidity, tds, temperature) {
   }
 
   // 2. Ambil threshold
-  const threshold = await thresholdRepository.findActive();
+  const threshold = await thresholdRepository.findActive(); // dari kanan dlu baru setelah = simpan di const
   if (!threshold) {
     throw { status: 500, message: "Threshold belum dikonfigurasi" };
   }

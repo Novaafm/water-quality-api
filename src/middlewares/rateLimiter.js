@@ -17,7 +17,7 @@ const rateLimit = require("express-rate-limit");
  */
 const chatMessageLimiter = rateLimit({
     windowMs: 30 * 60 * 1000, // 30 menit
-    max: 20,                  // max 20 request per window per session
+    max: 80,                  // max 20 request per window per session
     standardHeaders: true,    // kirim header RateLimit-* (RFC standard)
     legacyHeaders: false,     // matikan X-RateLimit-* (legacy)
 
