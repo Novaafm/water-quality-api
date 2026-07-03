@@ -1,5 +1,6 @@
 const pool = require("../config/database");
 
+// fungsi untuk menyimpan alert baru ke database
 async function insert(sensorDataId, parameter, value, thresholdMin, thresholdMax, severity, message) {
   const result = await pool.query(
     `INSERT INTO alerts 
@@ -11,6 +12,7 @@ async function insert(sensorDataId, parameter, value, thresholdMin, thresholdMax
   return result.rows[0];
 }
 
+// fungsi untuk mengambil semua alert, dengan opsi filter unreadOnly
 async function findAll(limit = 50, unreadOnly = false) {
   let query = "SELECT * FROM alerts";
   const params = [];
@@ -26,6 +28,7 @@ async function findAll(limit = 50, unreadOnly = false) {
   return result.rows;
 }
 
+// fungsi untuk menghitung jumlah alert yang belum dibaca
 async function countUnread() {
   const result = await pool.query(
     "SELECT COUNT(*) FROM alerts WHERE is_read = false"
@@ -33,6 +36,7 @@ async function countUnread() {
   return parseInt(result.rows[0].count);
 }
 
+// fungsi untuk menandai alert sebagai dibaca berdasarkan ID
 async function markAsRead(id) {
   const result = await pool.query(
     "UPDATE alerts SET is_read = true WHERE id = $1 RETURNING *",
@@ -41,6 +45,7 @@ async function markAsRead(id) {
   return result.rows[0] || null;
 }
 
+// fungsi untuk menandai semua alert sebagai dibaca
 async function markAllAsRead() {
   const result = await pool.query(
     "UPDATE alerts SET is_read = true WHERE is_read = false RETURNING id"
