@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-// Import routes
 const sensorRoutes = require("./routes/sensorRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const thresholdRoutes = require("./routes/thresholdRoutes");
@@ -11,28 +10,18 @@ const deviceRoutes = require("./routes/deviceRoutes");
 const deviceRepository = require("./repositories/deviceRepository");
 const measurementRoutes = require("./routes/measurementRoutes");
 
-// Import MQTT
 const connectMQTT = require("./config/mqtt");
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ============================================
-// Trust proxy (Railway pakai reverse proxy)
-// Trust 1 hop saja agar express-rate-limit bisa baca IP asli
-// JANGAN pakai `true` tanpa angka — bisa di-spoof attacker via X-Forwarded-For
-// ============================================
+// trust proxy untuk mendukung reverse proxy (misal Nginx) dan HTTPS
 app.set("trust proxy", 1);
 
-// ============================================
-// Middleware
-// ============================================
+// middleware
 app.use(cors());
 app.use(express.json());
 
-// ============================================
-// Routes
-// ============================================
+// rute API
 app.use("/api/sensors", sensorRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/threshold", thresholdRoutes);
@@ -47,7 +36,6 @@ app.get("/", (req, res) => {
     name: "Water Quality Monitoring API - UniFlow",
     version: "2.0.0",
     endpoints: {
-      // ... (sama persis seperti punya Anda, tidak perlu diubah)
       sensors: {
         "POST /api/sensors": "Simpan data sensor (+ WQI + auto alert)",
         "GET /api/sensors": "Ambil data sensor (query: limit)",
@@ -88,16 +76,15 @@ app.get("/", (req, res) => {
   });
 });
 
-// ============================================
-// Start server + MQTT
-// ============================================
+// Jalankan server
 app.listen(PORT, () => {
   console.log(`\nServer running at http://localhost:${PORT}`);
   console.log(`API docs at http://localhost:${PORT}\n`);
 
-  // Connect MQTT (untuk terima data dari ESP32)
+  // koneksi ke broker MQTT
   connectMQTT();
 
+  // cek setiap 1 menit apakah ada device yang sudah tidak mengirim data lebih dari 5 menit, jika ada maka set status device menjadi inactive
   setInterval(async () => {
     try {
       const staleDevices = await deviceRepository.deactivateStaleDevices(5);
@@ -107,5 +94,5 @@ app.listen(PORT, () => {
     } catch (err) {
       console.error("Error checking stale devices:", err.message);
     }
-  }, 60000); // Cek setiap 60 detik
+  }, 60000);
 });

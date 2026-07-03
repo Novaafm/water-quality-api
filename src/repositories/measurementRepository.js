@@ -1,9 +1,5 @@
 const pool = require("../config/database");
 
-// ============================================
-// Query database untuk tabel measurement_sessions
-// ============================================
-
 async function create(deviceId, location) {
     const result = await pool.query(
         `INSERT INTO measurement_sessions (device_id, location)

@@ -1,15 +1,4 @@
-// ============================================
-// Water Quality Index (WQI) Calculator
-// Sesuai CD-2 B-03 + Permenkes No. 32/2017:
-// - Pembobotan parameter (TDS & Kekeruhan bobot tinggi)
-// - Menghasilkan skor 0-100 dan status (Baik/Sedang/Buruk)
-// ============================================
-
-/**
- * Sub-index untuk parameter "tengah terbaik" (pH, Suhu)
- * Skor tertinggi di tengah range, menurun ke kedua sisi
- * Contoh pH: 7.5 = skor 100, 6.5 atau 8.5 = skor 75
- */
+// untuk yang center bext seperti ph dan suhu
 function subIndexCenterBest(value, min, max) {
     if (value === null || value === undefined) return null;
 
@@ -45,12 +34,7 @@ function subIndexCenterBest(value, min, max) {
     return 0;
 }
 
-/**
- * Sub-index untuk parameter "makin rendah makin bagus" (TDS, NTU)
- * Skor tertinggi di 0, menurun linear ke batas max
- * Contoh NTU: 0 = skor 100, 25 = skor 75, >25 = skor <75
- * Contoh TDS: 0 = skor 100, 1000 = skor 75, >1000 = skor <75
- */
+// untuk yang lower better seperti tds dan tss
 function subIndexLowerBetter(value, min, max) {
     if (value === null || value === undefined) return null;
 
@@ -74,14 +58,7 @@ function subIndexLowerBetter(value, min, max) {
     return 0;
 }
 
-/**
- * Hitung WQI keseluruhan
- * Bobot sesuai CD-2 B-03:
- * - pH: 0.20 (center best)
- * - Suhu: 0.10 (center best)
- * - TDS: 0.35 (lower better, bobot tinggi)
- * - TSS/Turbidity: 0.35 (lower better, bobot tinggi)
- */
+// hitung wqi keseluruhan dari data sensor dan threshold
 function calculateWQI(sensorData, threshold) {
     const weights = {
         ph: 0.20,
@@ -125,9 +102,7 @@ function calculateWQI(sensorData, threshold) {
     };
 }
 
-/**
- * Cek parameter yang melewati threshold, generate alerts
- */
+//Cek parameter yang melewati threshold, generate alerts
 function checkThresholdAlerts(sensorData, threshold) {
     const alerts = [];
 

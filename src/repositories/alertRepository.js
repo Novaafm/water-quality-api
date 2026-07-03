@@ -1,9 +1,5 @@
 const pool = require("../config/database");
 
-// ============================================
-// Semua query database untuk tabel alerts
-// ============================================
-
 async function insert(sensorDataId, parameter, value, thresholdMin, thresholdMax, severity, message) {
   const result = await pool.query(
     `INSERT INTO alerts 

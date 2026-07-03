@@ -1,9 +1,5 @@
 const deviceService = require("../services/deviceService");
 
-// ============================================
-// Handle request/response untuk device
-// ============================================
-
 async function create(req, res) {
     try {
         const { device_code, location } = req.body;

@@ -1,10 +1,7 @@
 const measurementRepository = require("../repositories/measurementRepository");
 const deviceRepository = require("../repositories/deviceRepository");
 
-// ============================================
-// Logic bisnis untuk measurement sessions
-// ============================================
-
+// memulai sesi pengukuran baru untuk device tertentu
 async function startSession(deviceCode) {
     // 1. Validasi device
     const device = await deviceRepository.findByCode(deviceCode);
@@ -23,6 +20,7 @@ async function startSession(deviceCode) {
     return session;
 }
 
+// menghentikan sesi pengukuran aktif untuk device tertentu
 async function stopSession(deviceCode) {
     // 1. Validasi device
     const device = await deviceRepository.findByCode(deviceCode);

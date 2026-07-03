@@ -1,10 +1,5 @@
 const sensorService = require("../services/sensorService");
 
-// ============================================
-// Handle request/response untuk sensor
-// Tidak ada query database atau logic bisnis di sini
-// ============================================
-
 async function create(req, res) {
     try {
         const { device_code, ph, turbidity, tds, temperature } = req.body;
@@ -86,6 +81,7 @@ async function exportCSV(req, res) {
             return res.status(404).json({ error: "Tidak ada data dalam rentang waktu tersebut" });
         }
 
+        //untuk format nama file, gunakan format tanggal dan waktu saat ini di Jakarta
         const now = new Date().toLocaleString("id-ID", {
             timeZone: "Asia/Jakarta",
             year: "numeric", month: "2-digit", day: "2-digit",
@@ -93,6 +89,7 @@ async function exportCSV(req, res) {
             hour12: false
         }).replace(/[/:]/g, "-").replace(/, /g, "_");
 
+        //merubah jadi csv dan kirim ke user
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", `attachment; filename=data_kualitas_air_${now}.csv`);
         res.send(csv);

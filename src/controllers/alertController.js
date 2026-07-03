@@ -1,9 +1,5 @@
 const alertService = require("../services/alertService");
 
-// ============================================
-// Handle request/response untuk alert
-// ============================================
-
 async function getAll(req, res) {
     try {
         const limit = parseInt(req.query.limit) || 50;

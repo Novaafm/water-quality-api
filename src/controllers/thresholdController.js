@@ -1,9 +1,5 @@
 const thresholdService = require("../services/thresholdService");
 
-// ============================================
-// Handle request/response untuk threshold
-// ============================================
-
 async function getActive(req, res) {
     try {
         const data = await thresholdService.getActiveThreshold();

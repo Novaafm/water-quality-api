@@ -1,9 +1,5 @@
 const alertRepository = require("../repositories/alertRepository");
 
-// ============================================
-// Logic bisnis untuk alert
-// ============================================
-
 async function getAlerts(limit, unreadOnly) {
     const data = await alertRepository.findAll(limit, unreadOnly);
     const unreadCount = await alertRepository.countUnread();

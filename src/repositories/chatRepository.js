@@ -1,9 +1,6 @@
 const pool = require("../config/database");
 
-// ============================================
-// Semua query database untuk tabel chat
-// ============================================
-
+// semua query database untuk tabel chat_sessions dan chat_messages
 async function createSession(title) {
     const result = await pool.query(
         "INSERT INTO chat_sessions (title) VALUES ($1) RETURNING *",

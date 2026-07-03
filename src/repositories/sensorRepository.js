@@ -1,9 +1,5 @@
 const pool = require("../config/database");
 
-// ============================================
-// Semua query database untuk tabel sensor_data
-// ============================================
-
 async function insert(deviceId, location, sessionId, ph, turbidity, tds, temperature, wqiScore, wqiStatus) {
   const result = await pool.query(
     `INSERT INTO sensor_data 

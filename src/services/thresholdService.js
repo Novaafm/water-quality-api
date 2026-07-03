@@ -1,9 +1,6 @@
 const thresholdRepository = require("../repositories/thresholdRepository");
 
-// ============================================
-// Logic bisnis untuk threshold
-// ============================================
-
+// mengambil threshold aktif dari database
 async function getActiveThreshold() {
   const threshold = await thresholdRepository.findActive();
   if (!threshold) {
@@ -12,6 +9,7 @@ async function getActiveThreshold() {
   return threshold;
 }
 
+// update threshold di database
 async function updateThreshold(phMin, phMax, tempMin, tempMax, tdsMin, tdsMax, tssMin, tssMax) {
   // Validasi: min harus lebih kecil dari max
   if (phMin >= phMax) throw { status: 400, message: "ph_min harus lebih kecil dari ph_max" };
@@ -25,6 +23,7 @@ async function updateThreshold(phMin, phMax, tempMin, tempMax, tdsMin, tdsMax, t
   return threshold;
 }
 
+// reset threshold ke default (Permenkes No. 32/2017)
 async function resetThreshold() {
   const threshold = await thresholdRepository.reset();
   return threshold;

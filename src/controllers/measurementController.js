@@ -1,9 +1,5 @@
 const measurementService = require("../services/measurementService");
 
-// ============================================
-// Handle request/response untuk measurement sessions
-// ============================================
-
 async function start(req, res) {
     try {
         const { device_code } = req.body;

@@ -4,10 +4,10 @@ const alertRepository = require("../repositories/alertRepository");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
 
-// Inisialisasi Gemini
+// inisialisasi Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Susunan array dengan versi Lite di akhir
+// susunan array dengan versi Lite di akhir
 const GEMINI_MODELS = [
     "gemini-2.5-flash",
     "gemini-3-flash-preview",
@@ -29,7 +29,7 @@ function getOtherModel(currentModel) {
     return GEMINI_MODELS[nextIndex];
 }
 
-// 🔒 SAFETY NET: Konstanta batas aman
+// konstanta batas aman
 const MAX_FUNCTION_CALL_ITERATIONS = 5;
 
 // Helper: clamp angka dalam rentang aman
@@ -39,9 +39,7 @@ const clamp = (value, min, max) => {
     return Math.max(min, Math.min(max, num));
 };
 
-// ============================================
 // System Prompt UniFlow
-// ============================================
 const SYSTEM_PROMPT = `Kamu adalah UniFlow, asisten AI khusus monitoring kualitas air di Telkom University.
 
 Karakteristik kamu:
@@ -62,9 +60,8 @@ Standar kualitas air yang kamu gunakan (Permenkes No. 32/2017):
 - TDS: Normal < 1000 ppm (standar Permenkes No. 32/2017)
 - Suhu: Normal suhu udara ± 3°C, sekitar 19 - 31°C untuk wilayah Bandung`;
 
-// ============================================
-// Helper: Bangun konteks sensor untuk AI
-// ============================================
+
+// helper: bangun konteks sensor untuk AI (RAG)
 async function buildSensorContext() {
     try {
         const latest = await sensorRepository.findLatest();
@@ -144,11 +141,7 @@ async function buildSensorContext() {
     }
 }
 
-// ============================================
-// Function Calling: AI bisa query database sendiri
-// PERUBAHAN: getRecentReadings, getDailyStats, getWeeklyStats
-// sekarang ikut menerima & meneruskan "zone" ke repository
-// ============================================
+// function untuk mengeksekusi function/tool yang dipanggil AI, dengan validasi input dan error handling
 const availableFunctions = {
     getStatsByDateRange: async (startDate, endDate, zone) => {
         const start = new Date(startDate);
@@ -165,7 +158,6 @@ const availableFunctions = {
         const stats = await sensorRepository.getStatsByDateRange(startDate, endDate, zone || null);
         return JSON.stringify(stats);
     },
-    // PERUBAHAN: tambah parameter "zone", diteruskan ke repository
     getRecentReadings: async (limit, zone) => {
         const safeLimit = clamp(limit, 1, 50);
         const readings = await sensorRepository.getRecentReadings(safeLimit, zone || null);
@@ -176,13 +168,11 @@ const availableFunctions = {
         const stats = await sensorRepository.getStatsByPeriod(safeDays, zone || null);
         return JSON.stringify(stats);
     },
-    // PERUBAHAN: tambah parameter "zone", diteruskan ke repository
     getDailyStats: async (days, zone) => {
         const safeDays = clamp(days, 1, 90);
         const stats = await sensorRepository.getDailyStats(safeDays, zone || null);
         return JSON.stringify(stats);
     },
-    // PERUBAHAN: tambah parameter "zone", diteruskan ke repository
     getWeeklyStats: async (weeks, zone) => {
         const safeWeeks = clamp(weeks, 1, 13);
         const stats = await sensorRepository.getWeeklyStats(safeWeeks, zone || null);
@@ -190,11 +180,7 @@ const availableFunctions = {
     },
 };
 
-// ============================================
-// PERUBAHAN: toolDeclarations — getRecentReadings, getDailyStats,
-// getWeeklyStats sekarang punya properti "zone" di parameters,
-// supaya Gemini tahu boleh mengirim filter lokasi untuk ketiganya.
-// ============================================
+// tools untuk function calling, agar AI bisa query database sendiri, deklarasi ini akan dikirim ke model Gemini
 const toolDeclarations = [
     {
         name: "getStatsByDateRange",
@@ -259,10 +245,6 @@ const toolDeclarations = [
     },
 ];
 
-// ============================================
-// Logic bisnis untuk chat
-// ============================================
-
 async function createNewSession(title) {
     return await chatRepository.createSession(title || "Sesi Baru");
 }
@@ -279,6 +261,7 @@ async function getSessionMessages(sessionId) {
     return await chatRepository.findMessagesBySession(sessionId);
 }
 
+// mengirim pesan ke AI chatbot dengan konteks sensor dan percakapan sebelumnya, function calling, dan fallback model
 async function sendMessage(sessionId, message) {
     const session = await chatRepository.findSessionById(sessionId);
     if (!session) {
@@ -299,6 +282,8 @@ async function sendMessage(sessionId, message) {
     }
 
     const currentTime = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+
+    // prompt dengan konteks sensor dan percakapan sebelumnya
     const promptWithContext = `
 [INFORMASI SISTEM - BACA TAPI JANGAN SEBUTKAN TAG INI KEPADA USER]
 Waktu saat ini adalah: ${currentTime} WIB. Gunakan ini sebagai patokan mutlak jika user bertanya "hari ini", "kemarin", "minggu lalu", dll.
@@ -312,7 +297,7 @@ Jika data di atas belum cukup untuk menjawab pertanyaan user (misalnya user bert
 ${message}
 `;
 
-    // Implementasi Fallback Logic yang Benar
+    // coba kirim ke Gemini, fallback ke model lain jika limit habis atau error
     let activeModelName = getNextModel();
     let modelWithTools;
     let chat;
@@ -341,7 +326,7 @@ ${message}
 
             result = await chat.sendMessage(promptWithContext);
             response = result.response;
-            success = true; // Berhasil! Keluar dari loop try-catch.
+            success = true;
 
         } catch (geminiError) {
             console.error(`[Gemini Error - ${activeModelName}]:`, geminiError.message);
@@ -349,14 +334,14 @@ ${message}
             attempts++;
 
             if (attempts < maxAttempts) {
-                // Geser ke model selanjutnya jika yang ini gagal/habis kuota
+                // geser ke model selanjutnya jika yang ini gagal/habis kuota
                 activeModelName = getOtherModel(activeModelName);
                 console.log(`[Gemini] Fallback pindah ke model: ${activeModelName}`);
             }
         }
     }
 
-    // Jika semua model di dalam array gagal (semua limit habis / server down)
+    // jika semua model di dalam array gagal (semua limit habis / server down)
     if (!success) {
         let fallbackMsg;
         if (lastError.message.includes("503")) {
@@ -374,7 +359,7 @@ ${message}
         return fallbackMsg;
     }
 
-    // 🔒 SAFETY NET: Iterasi function calling (diekskusi menggunakan model yang sukses di atas)
+    // iterasi function calling (diekskusi menggunakan model yang sukses di atas)
     let iterations = 0;
     while (
         response.candidates[0].content.parts.some(part => part.functionCall) &&
@@ -391,8 +376,6 @@ ${message}
         let functionResult;
 
         try {
-            // PERUBAHAN: getRecentReadings, getDailyStats, getWeeklyStats
-            // sekarang ikut mengirim functionArgs.zone
             if (functionName === "getStatsByDateRange") {
                 functionResult = await functionToCall(functionArgs.startDate, functionArgs.endDate, functionArgs.zone);
             } else if (functionName === "getRecentReadings") {
@@ -420,7 +403,7 @@ ${message}
             response = result.response;
         } catch (geminiError) {
             console.error("Gemini error saat function calling:", geminiError.message);
-            break; // Jika saat di tengah function calling terjadi error API, hentikan loop.
+            break;
         }
     }
 
@@ -428,13 +411,10 @@ ${message}
         console.warn(`Max function call iterations (${MAX_FUNCTION_CALL_ITERATIONS}) tercapai untuk session ${sessionId}`);
     }
 
-    // 10. Ambil jawaban final AI
     const aiResponse = response.text();
 
-    // 11. Simpan balasan AI
     await chatRepository.insertMessage(sessionId, "assistant", aiResponse);
 
-    // 12. Update timestamp sesi
     await chatRepository.updateSessionTimestamp(sessionId);
 
     return aiResponse;

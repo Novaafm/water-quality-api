@@ -29,6 +29,7 @@ const connectMQTT = () => {
     console.log("MQTT offline");
   });
 
+  // menghandle pesan yang diterima dari topik MQTT
   client.on("message", async (topic, payload) => {
     try {
       const data = JSON.parse(payload.toString());

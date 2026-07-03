@@ -1,9 +1,5 @@
 const pool = require("../config/database");
 
-// ============================================
-// Semua query database untuk tabel devices
-// ============================================
-
 async function findByCode(deviceCode) {
   const result = await pool.query(
     "SELECT * FROM devices WHERE device_code = $1",

@@ -1,9 +1,5 @@
 const pool = require("../config/database");
 
-// ============================================
-// Semua query database untuk tabel thresholds
-// ============================================
-
 async function findActive() {
     const result = await pool.query(
         "SELECT * FROM thresholds ORDER BY id DESC LIMIT 1"

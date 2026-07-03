@@ -166,13 +166,14 @@ const initDB = async () => {
     console.log("Default device UNIFLOW-01 registered");
 
     console.log("\n🎉 Database initialization complete!");
-    console.log("\n📋 Tables created (6):");
+    console.log("\n📋 Tables created (7):");
     console.log("   1. devices (device registry)");
     console.log("   2. sensor_data (sensor readings + WQI + location snapshot)");
-    console.log("   3. thresholds (Permenkes standards)");
-    console.log("   4. alerts (auto notifications)");
-    console.log("   5. chat_sessions (AI chat sessions)");
-    console.log("   6. chat_messages (AI chat messages)");
+    console.log("   3. measurement_sessions (measurement sessions)");
+    console.log("   4. thresholds (Permenkes standards)");
+    console.log("   5. alerts (auto notifications)");
+    console.log("   6. chat_sessions (AI chat sessions)");
+    console.log("   7. chat_messages (AI chat messages)");
 
   } catch (err) {
     console.error("Error:", err.message);

@@ -1,9 +1,6 @@
 const deviceRepository = require("../repositories/deviceRepository");
 
-// ============================================
-// Logic bisnis untuk device
-// ============================================
-
+// mendaftarkan device baru ke database
 async function registerDevice(deviceCode, location) {
   if (!deviceCode) {
     throw { status: 400, message: "device_code wajib diisi" };

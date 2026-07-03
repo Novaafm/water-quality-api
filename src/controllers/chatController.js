@@ -1,9 +1,5 @@
 const chatService = require("../services/chatService");
 
-// ============================================
-// Handle request/response untuk chat
-// ============================================
-
 async function createSession(req, res) {
     try {
         const { title } = req.body;

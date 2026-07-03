@@ -5,11 +5,7 @@ const alertRepository = require("../repositories/alertRepository");
 const measurementRepository = require("../repositories/measurementRepository");
 const { calculateWQI, checkThresholdAlerts } = require("../utils/wqi");
 
-// ============================================
-// Logic bisnis untuk sensor
-// Tidak kenal req/res, cuma terima data dan return hasil
-// ============================================
-
+// menyimpan data sensor baru, menghitung WQI, dan menyimpan alerts jika ada
 async function saveSensorData(deviceCode, ph, turbidity, tds, temperature) {
   // 1. Validasi device terdaftar
   const device = await deviceRepository.findByCode(deviceCode);
@@ -79,12 +75,13 @@ async function getTodayStats() {
   return await sensorRepository.getStatsToday();
 }
 
+// menghasilkan CSV dari data sensor, dengan marker MULAI/SELESAI sesi pengukuran
 async function exportCSV({ days, zone, start, end } = {}) {
   const rows = await sensorRepository.findForExport({ days, zone, start, end });
 
   if (rows.length === 0) return null;
 
-  // Ambil info measurement sessions untuk marker
+  // ambil info measurement sessions untuk marker
   let sessions = [];
   if (start && end) {
     sessions = await measurementRepository.findByTimeRange(start, end);
@@ -95,7 +92,7 @@ async function exportCSV({ days, zone, start, end } = {}) {
     sessions = await measurementRepository.findByTimeRange(startDate, endDate);
   }
 
-  // Buat lookup session by id
+  // buat lookup session by id
   const sessionMap = {};
   for (const s of sessions) {
     sessionMap[s.id] = s;
@@ -108,7 +105,7 @@ async function exportCSV({ days, zone, start, end } = {}) {
 
   const csvLines = [headers.join(",")];
 
-  // Track session markers yang sudah ditulis
+  // track session markers yang sudah ditulis
   const startedSessions = new Set();
   const endedSessions = new Set();
 
@@ -116,7 +113,7 @@ async function exportCSV({ days, zone, start, end } = {}) {
     const row = rows[i];
     const prevRow = i > 0 ? rows[i - 1] : null;
 
-    // Cek apakah perlu tambah marker MULAI
+    // cek apakah perlu tambah marker MULAI
     if (row.session_id && !startedSessions.has(row.session_id)) {
       const session = sessionMap[row.session_id];
       if (session) {
@@ -126,7 +123,7 @@ async function exportCSV({ days, zone, start, end } = {}) {
       startedSessions.add(row.session_id);
     }
 
-    // Tambah data row
+    // tambah data row
     csvLines.push([
       row.id,
       row.device_code || "",
@@ -140,7 +137,7 @@ async function exportCSV({ days, zone, start, end } = {}) {
       row.created_at
     ].join(","));
 
-    // Cek apakah perlu tambah marker SELESAI
+    // cek apakah perlu tambah marker SELESAI
     const nextRow = i < rows.length - 1 ? rows[i + 1] : null;
     if (row.session_id && !endedSessions.has(row.session_id)) {
       // Selesai jika: row berikutnya beda session, atau ini row terakhir
