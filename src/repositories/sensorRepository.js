@@ -94,7 +94,7 @@ async function findForExport({ days, zone, start, end } = {}) {
 // ============================================
 // Fungsi untuk AI Chatbot (Function Calling)
 // ============================================
-
+// ambil statistik sensor berdasarkan periode tertentu (dalam hari), dengan opsi filter berdasarkan lokasi (zone)
 async function getStatsByPeriod(days, zone) {
   let query = `
     SELECT
@@ -126,6 +126,7 @@ async function getStatsByPeriod(days, zone) {
   return result.rows[0];
 }
 
+// ambil data sensor berdasarkan rentang tanggal tertentu, dengan opsi filter berdasarkan lokasi (zone)
 async function getStatsByDateRange(startDate, endDate, location) {
   let query = `
     SELECT
@@ -151,10 +152,7 @@ async function getStatsByDateRange(startDate, endDate, location) {
   return result.rows[0];
 }
 
-// ============================================
-// PERUBAHAN: getRecentReadings sekarang menerima "zone"
-// Jika zone diisi, query bertambah filter WHERE location = zone
-// ============================================
+// ambil data sensor terbaru, dengan opsi filter berdasarkan lokasi (zone)
 async function getRecentReadings(limit = 10, zone) {
   let query = `
     SELECT s.ph, s.turbidity, s.tds, s.temperature, s.wqi_score, s.wqi_status, s.created_at,
@@ -177,6 +175,7 @@ async function getRecentReadings(limit = 10, zone) {
   return result.rows;
 }
 
+// ambil jumlah data sensor berdasarkan status WQI untuk periode tertentu (dalam hari)
 async function getWqiStatusCount(days) {
   const result = await pool.query(`
     SELECT wqi_status, COUNT(*) as count
@@ -188,9 +187,7 @@ async function getWqiStatusCount(days) {
   return result.rows;
 }
 
-// ============================================
-// PERUBAHAN: getDailyStats sekarang menerima "zone"
-// ============================================
+// ambil statistik harian untuk periode tertentu, dengan opsi filter berdasarkan lokasi (zone)
 async function getDailyStats(days = 7, zone) {
   let query = `
     SELECT
@@ -217,9 +214,7 @@ async function getDailyStats(days = 7, zone) {
   return result.rows;
 }
 
-// ============================================
-// PERUBAHAN: getWeeklyStats sekarang menerima "zone"
-// ============================================
+// ambil statistik mingguan untuk periode tertentu (dalam minggu), dengan opsi filter berdasarkan lokasi (zone)
 async function getWeeklyStats(weeks = 12, zone) {
   let query = `
     SELECT
@@ -246,6 +241,7 @@ async function getWeeklyStats(weeks = 12, zone) {
   return result.rows;
 }
 
+// ambil daftar lokasi unik dari data sensor, beserta jumlah pembacaan untuk masing-masing lokasi
 async function getAvailableLocations() {
   const result = await pool.query(`
     SELECT DISTINCT location, COUNT(*) as total_readings
